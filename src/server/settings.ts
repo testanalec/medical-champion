@@ -19,7 +19,7 @@ export const DEFAULT_SETTINGS: Record<string, any> = {
   contact: {
     support_phone: '+911244000000',
     support_phone_display: '+91 124 400 0000',
-    whatsapp_number: '',
+    whatsapp_number: '919205640777',
     whatsapp_prefill: "Hi, I need a companion for my parent's hospital visit.",
     support_email: 'care@medicalchampion.in',
     support_hours: '7 AM – 11 PM, all days',

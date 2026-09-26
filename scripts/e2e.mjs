@@ -24,9 +24,10 @@ const shot = (p, n) => p.screenshot({ path: `${OUT}/${n}.png` });
 // ---------- 1-4 customer books on WhatsApp
 const cust = await ctx({ width: 1280, height: 860 });
 await cust.goto(BASE + '/');
+// The site's WhatsApp button now opens the live number (wa.me); check the link, then use the simulator.
 await cust.getByTestId('wa-cta').first().click();
-await cust.getByText('CONTINUE WITH COMPANION REQUEST').click();
-await cust.waitForURL('**/whatsapp**');
+await cust.getByText('CONTINUE WITH COMPANION REQUEST').click(); // opens wa.me in a new tab (closed by the harness)
+await cust.goto(BASE + '/whatsapp');
 const phone = '98' + String(Date.now()).slice(-8);
 await cust.getByTestId('sim-phone').fill(phone);
 await cust.getByTestId('sim-name').fill('Rahul Kumar');

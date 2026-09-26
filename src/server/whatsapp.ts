@@ -74,6 +74,13 @@ function parseInput(m: any): Input {
 async function handleInbound(m: any, profileName: string | null, source: string, simOwner: string | null) {
   const phone = '+' + String(m.from).replace(/[^\d]/g, '');
   const conv0 = await upsertConversation(phone, { source, profileName });
+  // A real WhatsApp message proves this is a live number: if the same phone was used earlier in the
+  // website simulator, switch the conversation to the live channel so replies reach the customer's phone.
+  if (source === 'whatsapp' && conv0.source !== 'whatsapp') {
+    await sql`UPDATE wa_conversations SET source = 'whatsapp', sim_owner = NULL, updated_at = now() WHERE id = ${conv0.id}`;
+    conv0.source = 'whatsapp';
+    conv0.sim_owner = null;
+  }
   if (source === 'simulator' && simOwner && !conv0.sim_owner) {
     await sql`UPDATE wa_conversations SET sim_owner = ${simOwner} WHERE id = ${conv0.id}`;
   }

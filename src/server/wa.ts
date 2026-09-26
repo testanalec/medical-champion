@@ -24,13 +24,114 @@ export async function upsertConversation(phone: string, extra: { source?: string
   return rows[0];
 }
 
+// ---------------------------------------------------------------- Meta message templates
+// Outside the 24h customer-service window Meta only delivers pre-approved templates. We use one generic
+// UTILITY template that carries the already-rendered notification text as its single variable, plus an
+// AUTHENTICATION template for companion login codes. Both are created in Meta from Ops → Settings.
+export const UPDATE_TEMPLATE = 'mc_service_update';
+export const AUTH_TEMPLATE = 'mc_login_code';
+const GRAPH = 'https://graph.facebook.com/v21.0';
+
+export const META_TEMPLATES = [
+  {
+    name: UPDATE_TEMPLATE, language: 'en', category: 'UTILITY',
+    components: [
+      { type: 'HEADER', format: 'TEXT', text: 'Medical Champion update' },
+      {
+        type: 'BODY',
+        text: 'Here is the latest update on your companion request: {{1}}\n\nReply to this message if you need any help from our care team.',
+        example: { body_text: [['Request MC-10452: Priya has reached the hospital with your mother and will stay with her.']] },
+      },
+      { type: 'FOOTER', text: 'Not an emergency service. In an emergency call 112.' },
+    ],
+  },
+  {
+    name: AUTH_TEMPLATE, language: 'en', category: 'AUTHENTICATION',
+    components: [
+      { type: 'BODY', add_security_recommendation: true },
+      { type: 'FOOTER', code_expiration_minutes: 5 },
+      { type: 'BUTTONS', buttons: [{ type: 'OTP', otp_type: 'COPY_CODE', text: 'Copy code' }] },
+    ],
+  },
+];
+
+/** Meta rejects template parameters containing new lines, tabs or more than 4 consecutive spaces. */
+export function templateParam(text: string) {
+  return text.replace(/\*/g, '').replace(/[\r\n\t]+/g, ' · ').replace(/( · )+/g, ' · ').replace(/ {4,}/g, '   ').replace(/^ · | · $/g, '').trim().slice(0, 1000);
+}
+
+async function graph(path: string, init: RequestInit = {}) {
+  const res = await fetch(`${GRAPH}/${path}`, {
+    ...init,
+    headers: { authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'content-type': 'application/json', ...(init.headers || {}) },
+  });
+  const data: any = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = data?.error || {};
+    throw new Error(e.error_user_msg || e.message || `WhatsApp API error ${res.status}`);
+  }
+  return data;
+}
+
+const wabaId = () => process.env.WHATSAPP_WABA_ID || '';
+
+export async function listMetaTemplates() {
+  if (!waConfigured() || !wabaId()) return { configured: false, templates: [] as any[] };
+  const d = await graph(`${wabaId()}/message_templates?fields=name,status,category,language,rejected_reason&limit=100`);
+  const byName = new Map((d.data || []).map((t: any) => [t.name, t]));
+  return {
+    configured: true,
+    templates: META_TEMPLATES.map((t) => {
+      const m: any = byName.get(t.name);
+      return { name: t.name, category: t.category, status: m?.status || 'NOT_SUBMITTED', rejected_reason: m?.rejected_reason && m.rejected_reason !== 'NONE' ? m.rejected_reason : null };
+    }),
+  };
+}
+
+/** Creates any required templates that don't exist yet in the WhatsApp Business Account. */
+export async function syncMetaTemplates() {
+  const current = await listMetaTemplates();
+  if (!current.configured) throw new Error('WhatsApp is not fully configured (token, phone number ID and WHATSAPP_WABA_ID are required).');
+  const results: any[] = [];
+  for (const t of META_TEMPLATES) {
+    const st = current.templates.find((x) => x.name === t.name)?.status;
+    if (st && st !== 'NOT_SUBMITTED' && st !== 'REJECTED') { results.push({ name: t.name, action: 'exists', status: st }); continue; }
+    try {
+      const r = await graph(`${wabaId()}/message_templates`, { method: 'POST', body: JSON.stringify(t) });
+      results.push({ name: t.name, action: 'submitted', status: r.status || 'PENDING' });
+    } catch (e: any) {
+      results.push({ name: t.name, action: 'failed', error: e.message });
+    }
+  }
+  return results;
+}
+
+/** Sends a one-time login code through the approved AUTHENTICATION template. */
+export async function sendAuthCode(phone: string, code: string) {
+  if (!waConfigured()) throw new Error('WhatsApp is not configured');
+  const d = await graph(`${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({
+      messaging_product: 'whatsapp', to: phone.replace(/^\+/, ''), type: 'template',
+      template: {
+        name: AUTH_TEMPLATE, language: { code: 'en' },
+        components: [
+          { type: 'body', parameters: [{ type: 'text', text: code }] },
+          { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: code }] },
+        ],
+      },
+    }),
+  });
+  return d.messages?.[0]?.id as string | undefined;
+}
+
 function toGraphPayload(to: string, msg: OutMsg, useTemplate: boolean) {
   const toNum = to.replace(/^\+/, '');
   if (useTemplate && msg.template) {
     // Outside the 24h customer-service window Meta requires an approved template.
     return {
       messaging_product: 'whatsapp', to: toNum, type: 'template',
-      template: { name: msg.template, language: { code: 'en' }, components: [{ type: 'body', parameters: [{ type: 'text', text: msg.body.slice(0, 1000) }] }] },
+      template: { name: UPDATE_TEMPLATE, language: { code: 'en' }, components: [{ type: 'body', parameters: [{ type: 'text', text: templateParam(msg.body) }] }] },
     };
   }
   if (msg.buttons?.length) {

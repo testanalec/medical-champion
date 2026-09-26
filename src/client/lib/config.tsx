@@ -11,6 +11,7 @@ export interface PublicConfig {
   verification_claims: string[];
   lists: { languages: string[] };
   demo_mode: boolean;
+  demo_accounts?: [string, string, string][];
   integrations: { whatsapp: boolean; razorpay: boolean; sms: boolean };
 }
 

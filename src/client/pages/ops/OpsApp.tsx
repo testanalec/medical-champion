@@ -4,6 +4,7 @@ import {
   FiMenu, FiX, FiMessageSquare, FiFileText, FiPlus, FiSearch, FiSend,
 } from 'react-icons/fi';
 import { get, post, useApi } from '../../lib/api';
+import { useConfig } from '../../lib/config';
 import { useRoute, match, navigate, Link } from '../../lib/router';
 import { Button, Field, Input, Logo, PageLoader, cx, useToast, Badge, ago } from '../../components/ui';
 import Board from './Board';
@@ -207,7 +208,8 @@ function Login({ onDone, signedIn }: { onDone: () => void; signedIn: boolean }) 
     try { await post('/api/v1/auth/login', { email, password }); navigate('/ops', true); onDone(); }
     catch (er: any) { setErr(er.message); } finally { setBusy(false); }
   };
-  const demo = [['Admin', 'admin@medicalchampion.in', 'Admin@123'], ['Manager', 'manager@medicalchampion.in', 'Manager@123'], ['Agent', 'agent@medicalchampion.in', 'Agent@123'], ['Finance', 'finance@medicalchampion.in', 'Finance@123'], ['Support', 'support@medicalchampion.in', 'Support@123']];
+  // Demo shortcuts come from the server and only exist while demo mode is on
+  const demo = useConfig()?.demo_accounts ?? [];
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="hidden flex-col justify-between bg-gradient-to-br from-brand-800 to-brand-950 p-12 text-white lg:flex">
@@ -227,12 +229,12 @@ function Login({ onDone, signedIn }: { onDone: () => void; signedIn: boolean }) 
           <Field label="Password" className="mt-4"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required data-testid="login-password" /></Field>
           {err && <p className="mt-3 rounded-lg bg-red-50 p-2.5 text-sm text-red-700">{err}</p>}
           <Button className="btn-primary mt-6 w-full py-3" loading={busy} data-testid="login-submit">Sign in</Button>
-          <div className="mt-8 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+          {demo.length > 0 && <div className="mt-8 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Demo accounts</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {demo.map(([r, e, p]) => <button type="button" key={r} className="btn btn-secondary btn-sm" onClick={() => { setEmail(e); setPassword(p); }}>{r}</button>)}
             </div>
-          </div>
+          </div>}
           <p className="mt-6 text-center text-xs text-slate-500"><Link to="/" className="underline">Back to website</Link> · <Link to="/companion" className="underline">Companion app</Link></p>
         </form>
       </div>

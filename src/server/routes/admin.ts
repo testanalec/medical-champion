@@ -5,6 +5,16 @@ import { getAllSettings, setSetting, DEFAULT_SETTINGS, getSetting, integrationSt
 import { companionStats, verificationComplete } from '../dispatch';
 import { GAZETTEER } from '../geo';
 import { VERIFICATION_CONTROLS, isUrgent, SERVICE_TYPE_LABEL } from '../../shared/constants';
+import { listMetaTemplates, syncMetaTemplates } from '../wa';
+import { DEMO_USERS } from '../seed';
+
+// Operational tables emptied by the go-live reset. Configuration (settings, roles, users, pricing, service areas,
+// message templates) is kept. status_events / audit_logs are immutable per row; TRUNCATE is the sanctioned wipe.
+const GO_LIVE_TABLES = [
+  'wa_messages', 'wa_conversations', 'notifications', 'escalations', 'incidents', 'trust_responses', 'ratings', 'expenses',
+  'refunds', 'payment_events', 'payments', 'files', 'status_events', 'assignments', 'service_requests', 'locations',
+  'patients', 'customers', 'companions', 'otp_codes', 'idempotency_keys', 'audit_logs',
+];
 
 const median = (arr: number[]) => {
   const a = arr.filter((x) => x != null && !isNaN(x)).sort((x, y) => x - y);
@@ -425,6 +435,60 @@ export function registerAdmin(r: Router) {
                ${et ? sql`AND entity_type = ${et}` : sql``} ${eid ? sql`AND entity_id = ${eid}` : sql``}
                ${q ? sql`AND (summary ILIKE ${'%' + q + '%'} OR actor_name ILIKE ${'%' + q + '%'} OR action ILIKE ${'%' + q + '%'})` : sql``}
                ORDER BY created_at DESC LIMIT 300`;
+  });
+
+  // ---------------- WhatsApp templates in Meta (required outside the 24h window and for companion login codes)
+  r.get('/api/v1/admin/whatsapp/meta-templates', async (ctx) => {
+    requireUser(ctx, 'settings.edit');
+    try {
+      return await listMetaTemplates();
+    } catch (e: any) {
+      return { configured: true, templates: [], error: e.message };
+    }
+  });
+  r.post('/api/v1/admin/whatsapp/meta-templates/sync', async (ctx) => {
+    requireUser(ctx, 'settings.edit');
+    let results;
+    try { results = await syncMetaTemplates(); } catch (e: any) { throw bad(e.message); }
+    await audit(ctx, 'whatsapp.templates_submitted', 'settings', null, `Submitted WhatsApp templates to Meta: ${results.map((x: any) => `${x.name}=${x.action}`).join(', ')}`);
+    return { results, ...(await listMetaTemplates()) };
+  });
+
+  // ---------------- Go-live: remove all demo / test operational data, keep configuration and staff users
+  // One-step launch: wipe demo/test operations data, create the owner's real Super Admin login, disable every
+  // published demo login (their passwords are public) and switch demo mode off (no on-screen OTPs, no demo shortcuts).
+  r.post('/api/v1/admin/go-live-reset', async (ctx) => {
+    const u = requireUser(ctx, 'data.reset', 'user.manage', 'settings.edit');
+    const b = ctx.body;
+    if (String(b.confirm || '').trim().toUpperCase() !== 'GO LIVE') throw bad('Type GO LIVE to confirm');
+    const demoEmails = DEMO_USERS.map((d) => d.email.toLowerCase());
+    const owner = b.owner || {};
+    const email = String(owner.email || '').trim().toLowerCase();
+    const name = str(owner.name, 80);
+    const pw = String(owner.password || '');
+    if (!name || !/^\S+@\S+\.\S+$/.test(email)) throw bad('Enter your name and a valid email for your new admin login');
+    if (demoEmails.includes(email)) throw bad('Use your own email address, not one of the demo logins');
+    if (pw.length < 10 || !/[A-Z]/.test(pw) || !/[a-z]/.test(pw) || !/\d/.test(pw)) throw bad('Password must be at least 10 characters with upper-case, lower-case and a number');
+    if (demoEmails.some((d) => d.split('@')[0].toLowerCase() + '@123' === pw.toLowerCase())) throw bad('Choose a new password, not a demo one');
+
+    const counts = (await sql`SELECT (SELECT count(*)::int FROM service_requests) AS requests, (SELECT count(*)::int FROM customers) AS customers,
+                                     (SELECT count(*)::int FROM companions) AS companions`)[0];
+    let ownerId = '';
+    await sql.begin(async (tx: any) => {
+      await tx.unsafe(`TRUNCATE ${GO_LIVE_TABLES.join(', ')} RESTART IDENTITY CASCADE`);
+      const existing = (await tx`SELECT id FROM users WHERE email = ${email}`)[0];
+      ownerId = existing
+        ? (await tx`UPDATE users SET name = ${name}, password_hash = ${hashPassword(pw)}, role_id = 'super_admin', active = true WHERE id = ${existing.id} RETURNING id`)[0].id
+        : (await tx`INSERT INTO users (name, email, password_hash, role_id) VALUES (${name}, ${email}, ${hashPassword(pw)}, 'super_admin') RETURNING id`)[0].id;
+      await tx`UPDATE users SET active = false WHERE lower(email) IN ${tx(demoEmails)}`;
+      // Everyone signs in again: all staff and companion sessions end (the demo ones included)
+      await tx`DELETE FROM sessions`;
+    });
+    const security = await getSetting('security');
+    await setSetting('security', { ...security, demo_mode: false }, ownerId);
+    await audit(ctx, 'data.go_live_reset', 'settings', null,
+      `${u.name} launched live mode: removed ${counts.requests} requests, ${counts.customers} customers and ${counts.companions} companions of demo/test data; created Super Admin ${email}; disabled ${demoEmails.length} demo logins; demo mode off.`);
+    return { ok: true, removed: counts, admin_email: email };
   });
 
   r.post('/api/v1/admin/reset-demo', async (ctx) => {

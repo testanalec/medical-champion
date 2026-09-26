@@ -21,10 +21,16 @@ An operations-led service-orchestration platform (per the FRD) for Gurugram. The
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | Postgres connection (added automatically by Vercel ↔ Neon) |
-| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` | Live WhatsApp |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` | Live WhatsApp (number +91 92056 40777) |
+| `WHATSAPP_WABA_ID` | WhatsApp Business Account ID, used to submit and track message templates from Ops |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Live payments |
 | `CRON_SECRET` | Protects `/api/v1/cron/tick` |
 | `PUBLIC_BASE_URL` | Optional canonical URL used in WhatsApp links |
+
+## Going live
+1. Ops → Settings → Security & integrations → **WhatsApp templates in Meta** → *Submit to Meta for approval*. This covers `mc_service_update` (updates after 24 h of silence) and `mc_login_code` (companion login codes).
+2. Same page → **Go live**. It clears all demo/test data, creates your own Super Admin, disables the demo logins and turns demo mode off.
+3. Add real companions in Ops → Companions. They sign in at `/companion` with a code that arrives on WhatsApp.
 
 ## Demo logins
 Operations: `admin@ / manager@ / agent@ / finance@ / support@medicalchampion.in` with passwords `Admin@123`, `Manager@123`, `Agent@123`, `Finance@123` and `Support@123`.

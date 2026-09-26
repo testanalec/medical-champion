@@ -8,6 +8,7 @@ import { mapsLink } from '../geo';
 import { withIdempotency, createExpense, createIncident } from './shared';
 import { SERVICE_EVENTS, ACTIVE_SERVICE } from '../../shared/constants';
 import { maybeTick } from '../sla';
+import { waConfigured, sendAuthCode } from '../wa';
 
 async function jobView(requestId: string, companionId: string, full: boolean) {
   const r = (await sql`
@@ -67,8 +68,17 @@ export function registerCompanion(r: Router) {
       return { sent: true, ttl: 300, demo_code: null, message: 'If this number is registered, an OTP has been sent.' };
     }
     const { code, ttl } = await issueOtp(phone, 'companion_login');
-    // SMS provider adapter: sandbox mode shows the code on screen for demo/testing only.
-    return { sent: true, ttl, demo_code: demo ? code : null };
+    // Demo mode shows the code on screen for testing only. In production the code is delivered on
+    // WhatsApp through the approved authentication template.
+    if (demo) return { sent: true, ttl, demo_code: code, message: 'OTP sent' };
+    if (!waConfigured()) throw new HttpError(503, 'Login codes cannot be delivered right now. Please contact Operations.', 'otp_delivery_unavailable');
+    try {
+      await sendAuthCode(phone, code);
+    } catch (e: any) {
+      console.error('[companion otp] WhatsApp delivery failed', e?.message);
+      throw new HttpError(502, 'We could not send the code on WhatsApp. Please try again in a minute or contact Operations.', 'otp_delivery_failed');
+    }
+    return { sent: true, ttl, demo_code: null, message: 'Code sent to your WhatsApp' };
   });
   r.post('/api/v1/companion/auth/verify', async (ctx) => {
     await rateLimit(`otpv:${ctx.ip}`, 30, 900);

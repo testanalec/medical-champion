@@ -120,7 +120,7 @@ function Login({ onDone }: { onDone: () => void }) {
   const send = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setBusy(true);
-    try { const r = await post('/api/v1/companion/auth/otp', { phone }); setDemo(r.demo_code); setStep('code'); toast('info', 'OTP sent'); }
+    try { const r = await post('/api/v1/companion/auth/otp', { phone }); setDemo(r.demo_code); setStep('code'); toast('info', r.message || 'OTP sent'); }
     catch (er: any) { toast('error', er.message); } finally { setBusy(false); }
   };
   const verify = async (e: React.FormEvent) => {
@@ -142,7 +142,7 @@ function Login({ onDone }: { onDone: () => void }) {
           </form>
         ) : (
           <form onSubmit={verify}>
-            <p className="text-sm text-slate-600">Enter the 6-digit code sent to {phone}</p>
+            <p className="text-sm text-slate-600">{demo ? `Enter the 6-digit code for ${phone}` : `Enter the 6-digit code we sent on WhatsApp to ${phone}`}</p>
             <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" className="mt-3 text-center text-2xl tracking-[.5em]" autoFocus data-testid="cmp-otp" />
             {demo && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-center text-xs text-amber-900">Demo mode – your OTP is <strong className="font-mono text-base" data-testid="cmp-demo-otp">{demo}</strong></p>}
             <Button className="btn-primary mt-4 w-full py-3" loading={busy} data-testid="cmp-verify">Verify & sign in</Button>

@@ -12,6 +12,7 @@ import { baseUrl, alertOps } from '../notifications';
 import { sha256, can } from '../auth';
 import { tick } from '../sla';
 import { STATUS_LABEL, patientRef } from '../../shared/constants';
+import { DEMO_USERS } from '../seed';
 
 export function registerPublic(r: Router) {
   r.get('/api/v1/health', async () => {
@@ -29,6 +30,8 @@ export function registerPublic(r: Router) {
       brand: s.brand, contact: s.contact, emergency: s.emergency, service_types: SERVICE_TYPES,
       pricing: rules, service_areas: areas, verification_claims: s.verification.public_claims,
       lists: { languages: s.lists.languages }, demo_mode: !!s.security.demo_mode,
+      // Demo sign-in shortcuts are only published while demo mode is on
+      demo_accounts: s.security.demo_mode ? DEMO_USERS.map((u) => [u.email.split('@')[0].replace(/^./, (c) => c.toUpperCase()), u.email, u.password]) : [],
       integrations: integrationStatus(),
     };
   });

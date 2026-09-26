@@ -118,14 +118,16 @@ function SecurityTab({ s, integrations, onSaved }: { s: any; integrations: any; 
     <div className="grid gap-4 lg:grid-cols-2">
       <Section title="Integrations">
         <div className="grid gap-2">
-          <I ok={integrations.whatsapp} label="WhatsApp Business Platform" env="WHATSAPP_TOKEN · WHATSAPP_PHONE_NUMBER_ID · WHATSAPP_APP_SECRET · WHATSAPP_VERIFY_TOKEN" />
+          <I ok={integrations.whatsapp} label="WhatsApp Business Platform" env="WHATSAPP_TOKEN · WHATSAPP_PHONE_NUMBER_ID · WHATSAPP_WABA_ID · WHATSAPP_APP_SECRET · WHATSAPP_VERIFY_TOKEN" />
           <I ok={integrations.razorpay} label="Razorpay payments" env="RAZORPAY_KEY_ID · RAZORPAY_KEY_SECRET · RAZORPAY_WEBHOOK_SECRET" />
-          <I ok={integrations.sms} label="SMS / OTP provider" env="SMS_PROVIDER_KEY" />
+          <I ok={integrations.whatsapp} label="Companion login codes (WhatsApp)" env="Approved template mc_login_code" />
           <I ok label="Maps & geocoding" env="Built-in Gurugram gazetteer + OpenStreetMap" />
         </div>
         <p className="mt-3 text-xs text-slate-500">Webhook URLs: <span className="font-mono">/api/v1/whatsapp/webhook</span> and <span className="font-mono">/api/v1/payments/webhook</span>. Secrets live only in environment variables, never in source control.</p>
       </Section>
       <KeyForm k="security" title="Security" value={s.security} onSaved={onSaved} numeric fields={[['otp_ttl_seconds', 'OTP expiry (seconds)']]} bools={[['demo_mode', 'Demo mode (shows OTP on screen, allows demo reset) — turn OFF in production']]} />
+      <MetaTemplates />
+      {can('data.reset') && s.security.demo_mode && <GoLiveReset />}
       {can('data.reset') && s.security.demo_mode && (
         <Section title="Demo data">
           <p className="text-sm text-slate-600">Wipe and re-seed the database with fresh demo data (30 days of history, live board, companions, users).</p>
@@ -136,6 +138,72 @@ function SecurityTab({ s, integrations, onSaved }: { s: any; integrations: any; 
         </Section>
       )}
     </div>
+  );
+}
+
+const META_STATUS_TONE: Record<string, string> = { APPROVED: 'green', PENDING: 'amber', IN_APPEAL: 'amber', NOT_SUBMITTED: 'gray', REJECTED: 'red', PAUSED: 'red', DISABLED: 'red' };
+const META_TEMPLATE_LABEL: Record<string, string> = {
+  mc_service_update: 'Service updates (used when the customer has not messaged in 24h)',
+  mc_login_code: 'Companion login code (authentication)',
+};
+
+function MetaTemplates() {
+  const { can } = useOps();
+  const { data, loading, reload } = useApi<any>('/api/v1/admin/whatsapp/meta-templates');
+  const { busy, run } = useAction();
+  return (
+    <Section title="WhatsApp templates in Meta">
+      <p className="text-sm text-slate-600">Meta must approve these before we can message customers after 24 hours of silence, or send companions their login code on WhatsApp.</p>
+      {loading && !data ? <p className="mt-3 text-sm text-slate-500">Checking with Meta…</p> : !data?.configured ? (
+        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">WhatsApp is in sandbox mode or <span className="font-mono">WHATSAPP_WABA_ID</span> is not set.</p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {data.error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{data.error}</p>}
+          {(data.templates || []).map((t: any) => (
+            <div key={t.name} className="flex items-start justify-between gap-3 rounded-xl p-3 ring-1 ring-slate-200">
+              <div><p className="font-semibold">{META_TEMPLATE_LABEL[t.name] || t.name}</p><p className="font-mono text-[11px] text-slate-500">{t.name} · {t.category}</p>
+                {t.rejected_reason && <p className="mt-1 text-xs text-red-700">Rejected: {t.rejected_reason}</p>}</div>
+              <Badge tone={META_STATUS_TONE[t.status] || 'gray'}>{String(t.status).replace('_', ' ')}</Badge>
+            </div>
+          ))}
+          {can('settings.edit') && (data.templates || []).some((t: any) => ['NOT_SUBMITTED', 'REJECTED'].includes(t.status)) && (
+            <Button loading={!!busy} onClick={async () => { if (await run('t', () => post('/api/v1/admin/whatsapp/meta-templates/sync'), 'Submitted to Meta for approval')) reload(); }}>Submit to Meta for approval</Button>
+          )}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Refresh status</button>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function GoLiveReset() {
+  const [f, setF] = useState({ name: '', email: '', password: '', password2: '', confirm: '' });
+  const { busy, run } = useAction();
+  const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
+  const pwOk = f.password.length >= 10 && /[A-Z]/.test(f.password) && /[a-z]/.test(f.password) && /\d/.test(f.password);
+  const ready = f.name.trim() && /^\S+@\S+\.\S+$/.test(f.email.trim()) && pwOk && f.password === f.password2 && f.confirm.trim().toUpperCase() === 'GO LIVE';
+  return (
+    <Section title="Go live">
+      <p className="text-sm text-slate-600">Run this once, when you are ready for real customers. It will:</p>
+      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+        <li>permanently delete all demo &amp; test requests, customers, companions, payments, incidents, WhatsApp chats and audit history;</li>
+        <li>create <b>your own Super Admin login</b> below and disable every demo login (their passwords are public);</li>
+        <li>turn demo mode off – companions then receive their login code on WhatsApp instead of seeing it on screen.</li>
+      </ul>
+      <p className="mt-2 text-sm text-slate-600">Settings, pricing, service areas and message templates are kept. Everyone is signed out; sign in again with the new login. This cannot be undone.</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <Field label="Your name"><Input value={f.name} onChange={set('name')} autoComplete="name" /></Field>
+        <Field label="Your email (new admin login)"><Input type="email" value={f.email} onChange={set('email')} autoComplete="email" /></Field>
+        <Field label="New password" hint="10+ characters, upper & lower case and a number"><Input type="password" value={f.password} onChange={set('password')} autoComplete="new-password" /></Field>
+        <Field label="Repeat password"><Input type="password" value={f.password2} onChange={set('password2')} autoComplete="new-password" /></Field>
+      </div>
+      {f.password2 && f.password !== f.password2 && <p className="mt-2 text-sm text-red-700">Passwords don't match.</p>}
+      <Field label="Type GO LIVE to confirm" className="mt-3"><Input value={f.confirm} onChange={set('confirm')} placeholder="GO LIVE" /></Field>
+      <Button className="btn-danger mt-3" disabled={!ready} loading={!!busy} onClick={async () => {
+        const body = { confirm: f.confirm, owner: { name: f.name.trim(), email: f.email.trim(), password: f.password } };
+        if (await run('g', () => post('/api/v1/admin/go-live-reset', body), 'Live mode on – sign in with your new login')) setTimeout(() => location.assign('/ops'), 1200);
+      }}><FiAlertTriangle /> Clear demo data &amp; go live</Button>
+    </Section>
   );
 }
 
