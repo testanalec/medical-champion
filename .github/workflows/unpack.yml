@@ -1,20 +1,35 @@
-name: Unpack project upload
+name: Apply upload and rebuild
+# Upload either medical-champion.tgz (full project) or update.patch.gz (git diff, gzipped) to the repo root.
+# This workflow applies it, rebuilds the prebuilt bundles (api/index.js, public/assets/app.js) and commits,
+# which triggers the Vercel production deployment.
 on:
   push:
-    paths: ['medical-champion.tgz']
+    paths: ['medical-champion.tgz', 'update.patch.gz']
 permissions:
   contents: write
 jobs:
-  unpack:
+  apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Extract archive into the repository
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply the upload
         run: |
-          tar xzf medical-champion.tgz
-          git rm -q medical-champion.tgz
+          if [ -f medical-champion.tgz ]; then tar xzf medical-champion.tgz; git rm -q medical-champion.tgz; fi
+          if [ -f update.patch.gz ]; then gunzip -c update.patch.gz | git apply --whitespace=nowarn; git rm -q update.patch.gz; fi
+      - name: Rebuild bundles (pinned versions)
+        run: |
+          mkdir -p /tmp/deps && cd /tmp/deps && npm init -y > /dev/null
+          npm i --no-audit --no-fund esbuild@0.27.7 react@19.2.6 react-dom@19.2.6 react-icons@5.6.0
+          cd "$GITHUB_WORKSPACE" && ln -sfn /tmp/deps/node_modules node_modules
+          ESBUILD_PATH=/tmp/deps/node_modules/esbuild TAILWIND_BIN=/bin/true node scripts/build.mjs
+          rm -f node_modules
+      - name: Commit
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Medical Champion MVP: website, WhatsApp booking, operations portal, companion PWA"
+          git commit -m "Apply upload and rebuild bundles"
           git push
