@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "types": ["react", "react-dom"], "strict": false, "noImplicitAny": false, "typeRoots": ["./node_modules/@types"] },
+  "include": ["src/client/**/*.tsx", "src/client/**/*.ts", "src/shared/**/*.ts"]
+}
