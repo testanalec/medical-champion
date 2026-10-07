@@ -21,7 +21,7 @@ export function Privacy() {
   return (
     <Doc title="Privacy notice" updated="September 2026">
       <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">Draft for legal review. Exact obligations under the Digital Personal Data Protection Act, 2023 and other applicable Indian law must be confirmed before production launch.</p>
-      <p>{c?.brand.name || 'Medical Champion'} coordinates companions who accompany people to medical appointments. We collect only the information needed to deliver that service.</p>
+      <p>{c?.brand.name || 'ChampOnCall'} coordinates companions who accompany people to medical appointments. We collect only the information needed to deliver that service.</p>
       <h2>What we collect</h2>
       <ul>
         <li>Your name, mobile/WhatsApp number and optional email.</li>

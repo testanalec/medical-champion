@@ -1,4 +1,4 @@
-# Medical Champion — On-Demand Medical Companion Platform
+# ChampOnCall — On-Demand Medical Companion Platform
 
 *When you can't be there, we can.*
 

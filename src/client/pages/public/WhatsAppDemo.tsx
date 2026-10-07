@@ -97,7 +97,7 @@ export default function WhatsAppDemo() {
               <FiArrowLeft className="opacity-70" />
               <img src="/icon.svg" alt="" className="h-9 w-9 rounded-full bg-white" />
               <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-sm font-semibold">{c?.brand.name || 'Medical Champion'}</p>
+                <p className="truncate text-sm font-semibold">{c?.brand.name || 'ChampOnCall'}</p>
                 <p className="text-[11px] text-emerald-100">{sending ? 'typing…' : 'Business account · usually replies instantly'}</p>
               </div>
               {phone && (

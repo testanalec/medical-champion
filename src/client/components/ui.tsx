@@ -300,8 +300,8 @@ export function Logo({ light, compact }: { light?: boolean; compact?: boolean })
       <img src="/icon.svg" alt="" className="h-9 w-9 rounded-xl" />
       {!compact && (
         <span className="whitespace-nowrap leading-none">
-          <span className={cx('block font-display text-[19px] font-semibold tracking-tight', light ? 'text-white' : 'text-brand-900')}>Medical Champion</span>
-          <span className={cx('mt-0.5 block text-[9.5px] font-semibold uppercase tracking-[.14em]', light ? 'text-brand-200' : 'text-brand-600')}>Hospital companions</span>
+          <span className={cx('block font-display text-[19px] font-semibold tracking-tight', light ? 'text-white' : 'text-brand-900')}>ChampOnCall</span>
+          <span className={cx('mt-0.5 block text-[9.5px] font-semibold uppercase tracking-[.14em]', light ? 'text-brand-200' : 'text-brand-600')}>Trusted help, any time</span>
         </span>
       )}
     </span>

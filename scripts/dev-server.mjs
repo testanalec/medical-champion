@@ -37,4 +37,4 @@ http.createServer(async (req, res) => {
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, 'public/index.html');
   res.writeHead(200, { 'content-type': types[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' });
   fs.createReadStream(file).pipe(res);
-}).listen(port, () => console.log(`Medical Champion running on http://localhost:${port}`));
+}).listen(port, () => console.log(`ChampOnCall running on http://localhost:${port}`));

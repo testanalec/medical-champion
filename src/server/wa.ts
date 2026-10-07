@@ -36,7 +36,7 @@ export const META_TEMPLATES = [
   {
     name: UPDATE_TEMPLATE, language: 'en', category: 'UTILITY',
     components: [
-      { type: 'HEADER', format: 'TEXT', text: 'Medical Champion update' },
+      { type: 'HEADER', format: 'TEXT', text: 'ChampOnCall update' },
       {
         type: 'BODY',
         text: 'Here is the latest update on your companion request: {{1}}\n\nReply to this message if you need any help from our care team.',

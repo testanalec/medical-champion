@@ -314,7 +314,7 @@ function PhoneMock() {
       <div className="overflow-hidden rounded-[2.4rem] border-[10px] border-slate-900 bg-slate-900 shadow-lift">
         <div className="flex items-center gap-3 bg-[#075e54] px-4 pb-3 pt-4 text-white">
           <img src="/icon.svg" alt="" className="h-9 w-9 rounded-full" />
-          <div className="leading-tight"><p className="text-sm font-semibold">Medical Champion</p><p className="text-[11px] text-emerald-100">Business account</p></div>
+          <div className="leading-tight"><p className="text-sm font-semibold">ChampOnCall</p><p className="text-[11px] text-emerald-100">Business account</p></div>
         </div>
         <div className="wa-bg space-y-2 px-3 py-4" style={{ minHeight: 400 }}>
           {msgs.map((m, i) => (

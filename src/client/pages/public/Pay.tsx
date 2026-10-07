@@ -32,7 +32,7 @@ export default function Pay({ id }: { id: string }) {
         <div className="card overflow-hidden">
           <div className="bg-slate-900 px-6 py-5 text-white">
             <p className="flex items-center gap-2 text-xs text-slate-300"><FiLock /> Secure checkout · {p.provider === 'razorpay' ? 'Razorpay' : 'Payment gateway (sandbox)'}</p>
-            <p className="mt-2 text-sm text-slate-300">Medical Champion · {p.request_number}</p>
+            <p className="mt-2 text-sm text-slate-300">ChampOnCall · {p.request_number}</p>
             <p className="mt-1 text-4xl font-bold tabular-nums" data-testid="pay-amount">{fmtINR(p.amount)}</p>
             {p.duration_minutes && <p className="mt-1 text-xs text-slate-400">Companion service · {fmtDuration(p.duration_minutes)}{b.expenses ? ` · incl. ${fmtINR(b.expenses)} expenses` : ''}</p>}
           </div>

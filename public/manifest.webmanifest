@@ -1,7 +1,7 @@
 {
-  "name": "Medical Champion Companion",
-  "short_name": "MC Companion",
-  "description": "Companion app for Medical Champion field staff",
+  "name": "ChampOnCall Companion",
+  "short_name": "Champ Companion",
+  "description": "Companion app for ChampOnCall field staff",
   "start_url": "/companion",
   "scope": "/",
   "display": "standalone",

@@ -1,4 +1,4 @@
-// Full relational schema for the Medical Champion platform (FRD §31-§33).
+// Full relational schema for the ChampOnCall platform (FRD §31-§33).
 // Idempotent: safe to run on every cold start.
 export const SCHEMA_VERSION = 3;
 

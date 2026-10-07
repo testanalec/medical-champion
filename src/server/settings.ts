@@ -12,7 +12,7 @@ export const SERVICE_TYPES = [
 
 export const DEFAULT_SETTINGS: Record<string, any> = {
   brand: {
-    name: 'Medical Champion',
+    name: 'ChampOnCall',
     tagline: "When you can't be there, we can.",
     city: 'Gurugram',
   },
@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS: Record<string, any> = {
     support_phone_display: '+91 124 400 0000',
     whatsapp_number: '919205640777',
     whatsapp_prefill: "Hi, I need a companion for my parent's hospital visit.",
-    support_email: 'care@medicalchampion.in',
+    support_email: 'care@champoncall.com',
     support_hours: '7 AM – 11 PM, all days',
   },
   emergency: {

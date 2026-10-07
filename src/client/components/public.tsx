@@ -76,7 +76,7 @@ export function PublicHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-warm-200/60 bg-warm-50/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link to="/" aria-label="Medical Champion home"><Logo /></Link>
+        <Link to="/" aria-label="ChampOnCall home"><Logo /></Link>
         <nav className="hidden items-center gap-1 lg:flex">
           {links.map(([l, h]) => <button key={h} onClick={() => nav(h)} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white hover:text-ink">{l}</button>)}
         </nav>
@@ -143,7 +143,7 @@ export function PublicFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-white/10 py-5 text-center text-xs text-brand-300">© {new Date().getFullYear()} Medical Champion. All rights reserved.</div>
+      <div className="border-t border-white/10 py-5 text-center text-xs text-brand-300">© {new Date().getFullYear()} ChampOnCall. All rights reserved.</div>
     </footer>
   );
 }

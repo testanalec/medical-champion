@@ -79,7 +79,7 @@ export async function geocode(q: string): Promise<{ lat: number; lng: number; ad
     const t = setTimeout(() => ctrl.abort(), 3500);
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(q)}`,
-      { headers: { 'user-agent': 'MedicalChampion/1.0 (ops@medicalchampion.in)' }, signal: ctrl.signal },
+      { headers: { 'user-agent': 'ChampOnCall/1.0 (ops@champoncall.com)' }, signal: ctrl.signal },
     );
     clearTimeout(t);
     if (!res.ok) return null;

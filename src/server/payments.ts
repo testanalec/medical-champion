@@ -49,7 +49,7 @@ export async function createPaymentForRequest(requestId: string, createdBy: stri
         headers: { authorization: rzpAuth(), 'content-type': 'application/json' },
         body: JSON.stringify({
           amount: Math.round(amount * 100), currency: 'INR', reference_id: p.id,
-          description: `Medical Champion companion service ${r.request_number}`,
+          description: `ChampOnCall companion service ${r.request_number}`,
           customer: { name: r.cname || undefined, contact: r.phone, email: r.email || undefined },
           notify: { sms: false, email: false }, reminder_enable: true,
           notes: { payment_id: p.id, request_number: r.request_number },
