@@ -1,10 +1,10 @@
 name: Apply upload and rebuild
-# Upload either medical-champion.tgz (full project) or update.patch.gz (git diff, gzipped) to the repo root.
+# Upload medical-champion.tgz (full project), update.patch.gz (git diff, gzipped) or champoncall-rename.zip to the repo root.
 # This workflow applies it, rebuilds the prebuilt bundles (api/index.js, public/assets/app.js) and commits,
 # which triggers the Vercel production deployment.
 on:
   push:
-    paths: ['medical-champion.tgz', 'update.patch.gz']
+    paths: ['medical-champion.tgz', 'update.patch.gz', 'champoncall-rename.zip', '.github/workflows/unpack.yml']
 permissions:
   contents: write
 jobs:
@@ -19,6 +19,7 @@ jobs:
         run: |
           if [ -f medical-champion.tgz ]; then tar xzf medical-champion.tgz; git rm -q medical-champion.tgz; fi
           if [ -f update.patch.gz ]; then gunzip -c update.patch.gz | git apply --whitespace=nowarn; git rm -q update.patch.gz; fi
+          if [ -f champoncall-rename.zip ]; then unzip -o -q champoncall-rename.zip; git rm -q champoncall-rename.zip; fi
       - name: Rebuild bundles (pinned versions)
         run: |
           mkdir -p /tmp/deps && cd /tmp/deps && npm init -y > /dev/null
@@ -31,5 +32,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Apply upload and rebuild bundles"
+          git diff --cached --quiet || git commit -m "Apply upload and rebuild bundles"
           git push
