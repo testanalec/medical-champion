@@ -296,12 +296,15 @@ export function useAction() {
 
 export function Logo({ light, compact }: { light?: boolean; compact?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2.5">
-      <img src="/icon.svg" alt="" className="h-9 w-9 rounded-xl" />
+    <span className="inline-flex items-center" style={{ gap: 12 }}>
+      <img src="/logo-mark.svg" alt="" width={48} height={48} style={{ width: 48, height: 48, borderRadius: 9999, boxShadow: '0 2px 8px rgb(19 33 60 / 0.18)' }} />
       {!compact && (
         <span className="whitespace-nowrap leading-none">
-          <span className={cx('block font-display text-[19px] font-semibold tracking-tight', light ? 'text-white' : 'text-brand-900')}>ChampOnCall</span>
-          <span className={cx('mt-0.5 block text-[9.5px] font-semibold uppercase tracking-[.14em]', light ? 'text-brand-200' : 'text-brand-600')}>Trusted help, any time</span>
+          <span className="block font-display font-bold tracking-tight" style={{ fontSize: 24, lineHeight: 1 }}>
+            <span style={{ color: light ? '#ffffff' : 'var(--color-brand-900)' }}>Champ</span>
+            <span style={{ color: light ? 'var(--color-coral-400)' : 'var(--color-coral-500)' }}>OnCall</span>
+          </span>
+          <span className="block font-semibold uppercase" style={{ marginTop: 5, fontSize: 10, letterSpacing: '0.16em', color: light ? 'var(--color-brand-200)' : 'var(--color-brand-500)' }}>Trusted help, any time</span>
         </span>
       )}
     </span>
