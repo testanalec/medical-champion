@@ -4,7 +4,7 @@ name: Apply upload and rebuild
 # which triggers the Vercel production deployment.
 on:
   push:
-    paths: ['medical-champion.tgz', 'update.patch.gz', 'champoncall-rename.zip', '.github/workflows/unpack.yml']
+    paths: ['medical-champion.tgz', 'update.patch*.gz', 'champoncall-rename.zip', '.github/workflows/unpack.yml']
 permissions:
   contents: write
 jobs:
@@ -18,7 +18,7 @@ jobs:
       - name: Apply the upload
         run: |
           if [ -f medical-champion.tgz ]; then tar xzf medical-champion.tgz; git rm -q medical-champion.tgz; fi
-          if [ -f update.patch.gz ]; then gunzip -c update.patch.gz | git apply --whitespace=nowarn; git rm -q update.patch.gz; fi
+          for p in update.patch*.gz; do [ -f "$p" ] || continue; gunzip -c "$p" | git apply --whitespace=nowarn; git rm -q "$p"; done
           if [ -f champoncall-rename.zip ]; then unzip -o -q champoncall-rename.zip; git rm -q champoncall-rename.zip; fi
       - name: Rebuild bundles (pinned versions)
         run: |
