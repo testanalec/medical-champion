@@ -5,82 +5,63 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.champoncall.app.data.Bookings
+import com.champoncall.app.data.Links
+import com.champoncall.app.data.SavedBooking
 import com.champoncall.app.push.Push
-import com.champoncall.app.ui.BookScreen
+import com.champoncall.app.ui.AppRoot
 import com.champoncall.app.ui.ChampTheme
-import com.champoncall.app.ui.FindScreen
-import com.champoncall.app.ui.HomeScreen
-import com.champoncall.app.ui.TrackScreen
+import com.champoncall.app.ui.Destination
+import com.champoncall.app.ui.Navigator
+import com.champoncall.app.work.StatusWork
 
 class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_REQUEST = "request_number"
     }
 
-    private val pendingTrack = mutableStateOf<String?>(null)
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
-        pendingTrack.value = intent?.getStringExtra(EXTRA_REQUEST)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(0xFFFBF8F2.toInt(), 0xFF13213C.toInt()),
+            navigationBarStyle = SystemBarStyle.light(0xFFFFFFFF.toInt(), 0xFF13213C.toInt()),
+        )
+        val start = if (savedInstanceState == null) destinationFrom(intent) else null
         Push.registerAll(this)
+        StatusWork.schedule(this)
         askNotificationPermission()
-
         setContent {
-            ChampTheme {
-                val nav = rememberNavController()
-                val target = pendingTrack.value
-                LaunchedEffect(target) {
-                    if (target != null) {
-                        nav.navigate("track/$target") { launchSingleTop = true }
-                        pendingTrack.value = null
-                    }
-                }
-                NavHost(navController = nav, startDestination = "home") {
-                    composable("home") {
-                        HomeScreen(
-                            onBook = { nav.navigate("book") },
-                            onTrack = { nav.navigate("track/$it") },
-                            onFind = { nav.navigate("find") },
-                        )
-                    }
-                    composable("book") {
-                        BookScreen(
-                            onBack = { nav.popBackStack() },
-                            onBooked = { number -> nav.navigate("track/$number") { popUpTo("home") } },
-                        )
-                    }
-                    composable("find") {
-                        FindScreen(
-                            onBack = { nav.popBackStack() },
-                            onFound = { number -> nav.navigate("track/$number") { popUpTo("home") } },
-                        )
-                    }
-                    composable("track/{number}", arguments = listOf(navArgument("number") { type = NavType.StringType })) { entry ->
-                        TrackScreen(
-                            number = entry.arguments?.getString("number").orEmpty(),
-                            onBack = { if (!nav.popBackStack()) finish() },
-                            onFind = { nav.navigate("find") },
-                        )
-                    }
-                }
-            }
+            ChampTheme { AppRoot(start = start) }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.getStringExtra(EXTRA_REQUEST)?.let { pendingTrack.value = it }
+        destinationFrom(intent)?.let { Navigator.incoming.tryEmit(it) }
+    }
+
+    /** Notification taps carry a request number; links carry /track/… or /pay/… URLs. */
+    private fun destinationFrom(intent: Intent?): Destination? {
+        if (intent == null) return null
+        intent.getStringExtra(EXTRA_REQUEST)?.let { return Destination.Track(it) }
+        val url = intent.dataString ?: return null
+        Links.parseTrack(url)?.let { (number, token) ->
+            val saved = SavedBooking(number, token, "", System.currentTimeMillis())
+            Bookings.save(this, saved)
+            Push.register(saved)
+            return Destination.Track(number)
+        }
+        Links.parsePay(url)?.let { (id, token) -> return Destination.Pay(id, token) }
+        return null
     }
 
     private fun askNotificationPermission() {

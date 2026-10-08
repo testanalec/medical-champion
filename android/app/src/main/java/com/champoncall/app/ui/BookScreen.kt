@@ -2,11 +2,23 @@
 
 package com.champoncall.app.ui
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.Build
+import android.os.Looper
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,29 +27,29 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,314 +57,470 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import com.champoncall.app.data.Api
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import com.champoncall.app.R
+import com.champoncall.app.data.ApiException
 import com.champoncall.app.data.AppConfig
+import com.champoncall.app.data.BookResult
+import com.champoncall.app.data.BookingForm
 import com.champoncall.app.data.Bookings
+import com.champoncall.app.data.Format
+import com.champoncall.app.data.Place
+import com.champoncall.app.data.Profile
+import com.champoncall.app.data.RELATIONSHIPS
+import com.champoncall.app.data.Repo
 import com.champoncall.app.data.SavedBooking
-import com.champoncall.app.data.asObj
-import com.champoncall.app.data.obj
-import com.champoncall.app.data.str
 import com.champoncall.app.push.Push
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonObject
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 
-private data class Place(val name: String, val address: String, val lat: Double?, val lng: Double?)
-
-private val RELATIONSHIPS = listOf("Mother", "Father", "Spouse", "Someone Else")
-private val URGENCY = listOf("ASAP" to "As soon as possible", "WITHIN_2_HOURS" to "Within 2 hours", "LATER_TODAY" to "Later today", "SCHEDULED" to "Schedule")
-private val MOBILITY = listOf("INDEPENDENT" to "Walks on their own", "NEEDS_ASSISTANCE" to "Needs some help", "BEDRIDDEN" to "Bedridden")
-
 @Composable
-fun BookScreen(onBack: () -> Unit, onBooked: (String) -> Unit) {
+fun BookScreen(onBack: () -> Unit, onTrack: (String) -> Unit, onHome: () -> Unit, onDoc: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var config by remember { mutableStateOf(AppConfig()) }
-    LaunchedEffect(Unit) { config = AppConfig.load() }
+    val toast = LocalToast.current
+    val config by Repo.config.collectAsState()
+    val profile = remember { Profile.load(context) }
+    var f by remember { mutableStateOf(BookingForm(customerName = profile.name, customerPhone = profile.phone, customerEmail = profile.email)) }
+    var gate by remember { mutableStateOf(true) }
+    var busy by remember { mutableStateOf(false) }
+    var done by remember { mutableStateOf<BookResult?>(null) }
+    val key = remember { UUID.randomUUID().toString() }
+    var pickerOpen by remember { mutableStateOf(false) }
+    var locating by remember { mutableStateOf(false) }
 
-    // who
-    var relationship by remember { mutableStateOf<String?>(null) }
-    var patientName by remember { mutableStateOf("") }
-    var patientAge by remember { mutableStateOf("") }
-    var language by remember { mutableStateOf<String?>(null) }
-    // where & what
-    var pickup by remember { mutableStateOf("") }
-    var pickupPlace by remember { mutableStateOf<Place?>(null) }
-    var service by remember { mutableStateOf<String?>(null) }
-    var hospital by remember { mutableStateOf("") }
-    var hospitalPlace by remember { mutableStateOf<Place?>(null) }
-    // when
-    var urgency by remember { mutableStateOf<String?>(null) }
-    var scheduledAt by remember { mutableStateOf<Calendar?>(null) }
-    var mobility by remember { mutableStateOf<String?>(null) }
-    // you
-    var customerName by remember { mutableStateOf("") }
-    var customerPhone by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
-    var consent by remember { mutableStateOf(false) }
-    var notEmergency by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { Repo.refreshConfig() }
 
-    var quoteText by remember { mutableStateOf<String?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var submitting by remember { mutableStateOf(false) }
-    val idempotencyKey = remember { UUID.randomUUID().toString() }
-
-    LaunchedEffect(service, urgency) {
-        val s = service ?: return@LaunchedEffect
-        quoteText = runCatching {
-            val q = Api.post("/api/v1/public/quote", buildJsonObject {
-                put("service_type", s)
-                put("urgency", urgency ?: "ASAP")
-            }).asObj()?.obj("quote")
-            q?.let { "Estimated ${formatInr(it.str("total"))} for the first ${it.str("included_minutes") ?: "few"} minutes, including taxes. Extra time is billed only if needed." }
-        }.getOrNull()
+    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        if (granted.values.any { it }) {
+            locating = true
+            currentLocation(context) { loc ->
+                locating = false
+                if (loc == null) toast("Could not get your location. Please type the address.")
+                else f = f.copy(pickupLat = loc.latitude, pickupLng = loc.longitude, pickupInArea = null, pickupText = f.pickupText.ifBlank { "Current location (pinned)" })
+            }
+        } else toast("Location permission was not given. Please type the address.")
     }
 
-    fun submit() {
-        val missing = listOfNotNull(
-            if (relationship == null) "who needs help" else null,
-            if (pickup.isBlank()) "pickup address" else null,
-            if (service == null) "type of help" else null,
-            if (urgency == null) "when" else null,
-            if (urgency == "SCHEDULED" && scheduledAt == null) "date & time" else null,
-            if (mobility == null) "mobility" else null,
-            if (customerName.isBlank()) "your name" else null,
-            if (customerPhone.filter { it.isDigit() }.length < 10) "your mobile number" else null,
-        )
-        if (missing.isNotEmpty()) { error = "Please add: " + missing.joinToString(", "); return }
-        if (!notEmergency) { error = "Please confirm this is not a medical emergency."; return }
-        if (!consent) { error = "Please accept the privacy notice and terms."; return }
-        error = null
-        submitting = true
+    val submit: () -> Unit = submit@{
+        val err = f.error()
+        if (err != null) {
+            toast(err)
+            return@submit
+        }
+        busy = true
         scope.launch {
             try {
-                val body = buildJsonObject {
-                    put("relationship", relationship)
-                    put("patient_name", patientName.ifBlank { null })
-                    put("patient_age", patientAge.toIntOrNull())
-                    put("patient_language", language)
-                    put("pickup_address", pickupPlace?.let { p -> if (pickup.contains(p.address)) pickup else "$pickup, ${p.address}" } ?: pickup)
-                    put("pickup_lat", pickupPlace?.lat)
-                    put("pickup_lng", pickupPlace?.lng)
-                    put("pickup_source", if (pickupPlace?.lat != null) "app_pin" else "typed")
-                    put("service_type", service)
-                    put("destination_name", hospital.ifBlank { null })
-                    put("destination_address", hospitalPlace?.address)
-                    put("destination_lat", hospitalPlace?.lat)
-                    put("destination_lng", hospitalPlace?.lng)
-                    put("urgency", urgency)
-                    put("requested_at", if (urgency == "SCHEDULED") scheduledAt?.let { isoTime(it) } else null)
-                    put("mobility", mobility)
-                    put("special_instructions", notes.ifBlank { null })
-                    put("customer_name", customerName.trim())
-                    put("customer_phone", customerPhone.trim())
-                    put("consent", true)
-                    put("emergency_acknowledged", true)
-                    put("idempotency_key", idempotencyKey)
-                    putJsonObject("utm") { put("utm_source", "android_app") }
-                }
-                val res = Api.post("/api/v1/requests", body).asObj() ?: throw IllegalStateException("Unexpected reply")
-                val (number, token) = Bookings.parseTrackUrl(res.str("track_url") ?: "")
-                    ?: throw IllegalStateException("Booking saved, but we couldn't open tracking. Please check WhatsApp.")
-                val label = config.services.firstOrNull { it.first == service }?.second ?: ""
-                val saved = SavedBooking(number, token, label, System.currentTimeMillis())
+                val res = Repo.book(f, key)
+                val saved = SavedBooking(res.number, res.token, config.services.firstOrNull { it.id == f.serviceType }?.label ?: "", System.currentTimeMillis(), "NEW", "Request received")
                 Bookings.save(context, saved)
+                Profile.save(context, Profile(f.customerName.trim(), f.customerPhone.trim(), f.customerEmail.trim()))
                 Push.register(saved)
-                onBooked(number)
-            } catch (e: Exception) {
-                error = e.message ?: "Something went wrong. Please try again."
+                done = res
+            } catch (e: ApiException) {
+                toast(e.message ?: "Something went wrong")
             } finally {
-                submitting = false
+                busy = false
             }
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Book a Champ") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Brand.Navy, titleContentColor = Color.White, navigationIconContentColor = Color.White),
-            )
-        },
-        containerColor = Brand.Ivory,
-    ) { padding ->
+    Column(Modifier.fillMaxSize().background(Brand.Warm50)) {
+        TopBar(if (done == null) "Book a Champ" else "Request received", onBack)
+        val result = done
+        if (result != null) {
+            BookSuccess(result, config, onTrack = { onTrack(result.number) }, onHome = onHome)
+            return@Column
+        }
         Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+            Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp).testTag("book-form"),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            SectionCard {
-                StepTitle("1", "Who needs help?")
-                ChoiceChips(RELATIONSHIPS.map { it to it }, relationship) { relationship = it }
-                OutlinedTextField(patientName, { patientName = it }, label = { Text("Their name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(
-                    patientAge, { v -> patientAge = v.filter { it.isDigit() }.take(3) }, label = { Text("Age") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(),
-                )
-                Text("Preferred language", style = MaterialTheme.typography.bodyMedium, color = Brand.Muted)
-                ChoiceChips(config.languages.map { it to it }, language) { language = if (language == it) null else it }
-            }
-
-            SectionCard {
-                StepTitle("2", "Where and what")
-                PlaceField(
-                    label = "Pickup address", hint = "House / flat, society, sector", type = "locality",
-                    value = pickup, onValue = { pickup = it; pickupPlace = null }, onPick = { pickupPlace = it; if (!pickup.contains(it.name, ignoreCase = true)) pickup = if (pickup.isBlank()) it.address else "$pickup, ${it.name}" },
-                    picked = pickupPlace != null,
-                )
-                Text("Type of help", style = MaterialTheme.typography.bodyMedium, color = Brand.Muted)
-                ChoiceChips(config.services, service) { service = it }
-                PlaceField(
-                    label = "Hospital / clinic (optional)", hint = "e.g. Medanta", type = "hospital",
-                    value = hospital, onValue = { hospital = it; hospitalPlace = null }, onPick = { hospitalPlace = it; hospital = it.name },
-                    picked = hospitalPlace != null,
-                )
-            }
-
-            SectionCard {
-                StepTitle("3", "When and mobility")
-                ChoiceChips(URGENCY, urgency) { urgency = it }
-                if (urgency == "SCHEDULED") {
-                    OutlinedButton(onClick = {
-                        val now = Calendar.getInstance()
-                        DatePickerDialog(context, { _, y, m, d ->
-                            TimePickerDialog(context, { _, h, min ->
-                                scheduledAt = Calendar.getInstance().apply { set(y, m, d, h, min, 0) }
-                            }, now.get(Calendar.HOUR_OF_DAY) + 1, 0, false).show()
-                        }, now.get(Calendar.YEAR), now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH)).apply {
-                            datePicker.minDate = now.timeInMillis - 1000
-                        }.show()
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Text(scheduledAt?.let { SimpleDateFormat("EEE d MMM, h:mm a", Locale.getDefault()).format(it.time) } ?: "Pick date & time", color = Brand.Navy)
-                    }
+            Column {
+                Kicker("Book online")
+                Spacer(Modifier.height(6.dp))
+                Text("Request a companion", style = MaterialTheme.typography.headlineLarge, color = Brand.B950)
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Prefer chatting? ", color = Brand.Slate600, fontSize = 14.sp)
+                    LinkText("WhatsApp", { openWhatsApp(context, config.whatsappNumber, config.whatsappPrefill) })
+                    Text(" or ", color = Brand.Slate600, fontSize = 14.sp)
+                    LinkText("call us", { dial(context, config.supportPhone) })
                 }
-                Text("Can they walk on their own?", style = MaterialTheme.typography.bodyMedium, color = Brand.Muted)
-                ChoiceChips(MOBILITY, mobility) { mobility = it }
-                if (mobility == "BEDRIDDEN") {
+            }
+
+            AppCard {
+                StepTitle("1. Who needs assistance?")
+                Chips(RELATIONSHIPS.map { it to it }, f.relationship, { f = f.copy(relationship = it) }, "rel")
+                Field("Their name") { AppTextField(f.patientName, { f = f.copy(patientName = it.take(80)) }, placeholder = "e.g. Kamla Devi", tag = "book-patient-name") }
+                Field("Age") {
+                    AppTextField(f.patientAge, { v -> f = f.copy(patientAge = v.filter { it.isDigit() }.take(3)) }, keyboardType = KeyboardType.Number, tag = "book-age")
+                }
+                Field("Preferred language") {
+                    Chips(listOf("" to "Any") + config.languages.map { it to it }, f.patientLanguage, { f = f.copy(patientLanguage = it) }, "lang")
+                }
+                Field("Their mobile (optional)") {
+                    AppTextField(f.patientPhone, { f = f.copy(patientPhone = it.take(16)) }, keyboardType = KeyboardType.Phone, tag = "book-patient-phone")
+                }
+            }
+
+            AppCard {
+                StepTitle("2. Where and what")
+                Field("Pickup address", "House/flat, society, sector. Start typing an area to pin it.") {
+                    PlaceField(
+                        value = f.pickupText,
+                        onValueChange = { f = f.copy(pickupText = it, pickupLat = null, pickupLng = null, pickupInArea = null) },
+                        onPick = { p ->
+                            val text = if (f.pickupText.isNotBlank() && !f.pickupText.contains(p.name, ignoreCase = true)) "${f.pickupText}, ${p.address}" else p.address
+                            f = f.copy(pickupText = text, pickupLat = p.lat, pickupLng = p.lng, pickupInArea = p.inArea)
+                        },
+                        type = "locality",
+                        placeholder = "e.g. B-12, Sushant Lok 1",
+                        tag = "book-pickup",
+                    )
+                }
+                Row(
+                    Modifier.clip(RoundedCornerShape(10.dp)).clickable(enabled = !locating) {
+                        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        if (fine || coarse) {
+                            locating = true
+                            currentLocation(context) { loc ->
+                                locating = false
+                                if (loc == null) toast("Could not get your location. Please type the address.")
+                                else f = f.copy(pickupLat = loc.latitude, pickupLng = loc.longitude, pickupInArea = null, pickupText = f.pickupText.ifBlank { "Current location (pinned)" })
+                            }
+                        } else {
+                            locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                        }
+                    }.padding(horizontal = 6.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Ic(R.drawable.fi_navigation, tint = Brand.Slate600, size = 15.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (locating) "Finding your location…" else "Use current location", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Brand.Slate600)
+                }
+                if (f.pickupLat != null) {
                     Text(
-                        "Thank you. Our care team will call you before confirming — some situations need medical transport rather than a companion.",
-                        style = MaterialTheme.typography.bodyMedium, color = Brand.GoldDeep,
+                        "📍 Location pinned" + if (f.pickupInArea == false) " — this looks outside ${config.city}; our team will review before confirming" else "",
+                        fontSize = 12.sp, color = Brand.Emerald700, modifier = Modifier.testTag("pinned"),
+                    )
+                }
+                Field("Type of help") {
+                    Chips(config.services.map { it.id to it.label }, f.serviceType, { f = f.copy(serviceType = it) }, "svc")
+                }
+                Field("Hospital / clinic", "Leave empty if not decided yet") {
+                    PlaceField(
+                        value = f.destText,
+                        onValueChange = { f = f.copy(destText = it, destLat = null, destLng = null) },
+                        onPick = { p -> f = f.copy(destText = p.name, destLat = p.lat, destLng = p.lng) },
+                        type = "hospital",
+                        placeholder = "e.g. Medanta",
+                        tag = "book-dest",
                     )
                 }
             }
 
-            SectionCard {
-                StepTitle("4", "Your details")
-                OutlinedTextField(customerName, { customerName = it }, label = { Text("Your name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(
-                    customerPhone, { customerPhone = it }, label = { Text("Your mobile (WhatsApp)") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(notes, { notes = it }, label = { Text("Anything we should know? (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth())
+            AppCard {
+                StepTitle("3. When & mobility")
+                Chips(BookingForm.URGENCIES, f.urgency, { f = f.copy(urgency = it) }, "urg")
+                if (f.urgency == "SCHEDULED") {
+                    Field("Date & time") {
+                        Surface(
+                            onClick = { pickerOpen = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Brand.Slate300),
+                            modifier = Modifier.fillMaxWidth().testTag("book-datetime"),
+                        ) {
+                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Ic(R.drawable.fi_calendar, tint = Brand.B600)
+                                Spacer(Modifier.width(10.dp))
+                                Text(f.requestedAtMillis?.let { Format.dateTime(it) } ?: "Choose date & time", fontSize = 15.sp, color = if (f.requestedAtMillis == null) Brand.Slate400 else Brand.Ink)
+                            }
+                        }
+                    }
+                }
+                Field("Can they walk independently?") {
+                    Chips(BookingForm.MOBILITY, f.mobility, { f = f.copy(mobility = it) }, "mob")
+                }
+                if (f.mobility == "BEDRIDDEN") {
+                    Notice("Thank you. A care team member will personally review this and call you before confirming — some situations need medical transport rather than a companion.", icon = null)
+                }
+                Field(
+                    "Anything important we should know?",
+                    "Only what the companion needs — e.g. “uses a walker”, “hard of hearing”. Please don’t share medical history. ${f.instructions.length}/${BookingForm.INSTRUCTIONS_MAX}",
+                ) {
+                    AppTextField(f.instructions, { f = f.copy(instructions = it.take(BookingForm.INSTRUCTIONS_MAX)) }, singleLine = false, minLines = 3, tag = "book-notes")
+                }
             }
 
-            quoteText?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = Brand.Navy, modifier = Modifier.background(Brand.GoldSoft, RoundedCornerShape(14.dp)).padding(14.dp))
+            AppCard {
+                StepTitle("4. Your details")
+                Field("Your name") { AppTextField(f.customerName, { f = f.copy(customerName = it.take(80)) }, tag = "book-name") }
+                Field("Your mobile (WhatsApp)") {
+                    AppTextField(f.customerPhone, { f = f.copy(customerPhone = it.take(16)) }, placeholder = "98765 43210", keyboardType = KeyboardType.Phone, tag = "book-phone")
+                }
+                Field("Email (optional)") {
+                    AppTextField(f.customerEmail, { f = f.copy(customerEmail = it.take(120)) }, keyboardType = KeyboardType.Email, tag = "book-email")
+                }
+                Row(verticalAlignment = Alignment.Top) {
+                    Checkbox(
+                        checked = f.consent,
+                        onCheckedChange = { f = f.copy(consent = it) },
+                        colors = CheckboxDefaults.colors(checkedColor = Brand.B700),
+                        modifier = Modifier.testTag("book-consent"),
+                    )
+                    Column(Modifier.padding(top = 12.dp)) {
+                        Text(
+                            "I agree to the privacy notice and terms, and I have the consent of the person receiving assistance to share their details for this service.",
+                            fontSize = 14.sp, lineHeight = 20.sp, color = Brand.Slate600,
+                            modifier = Modifier.clickable { f = f.copy(consent = !f.consent) },
+                        )
+                        Row {
+                            LinkText("Privacy notice", { onDoc("privacy") }, fontColor())
+                            Spacer(Modifier.width(16.dp))
+                            LinkText("Terms", { onDoc("terms") }, fontColor())
+                        }
+                    }
+                }
             }
 
-            CheckRow(notEmergency, { notEmergency = it }, "This is not a medical emergency. In an emergency I will call ${config.emergencyNumber}.")
-            CheckRow(consent, { consent = it }, "I agree to the privacy notice and terms, and consent to sharing these details with ChampOnCall.")
-
-            error?.let { Text(it, color = Brand.Danger, style = MaterialTheme.typography.bodyMedium) }
-
-            Button(
-                onClick = { submit() },
-                enabled = !submitting,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Brand.Navy),
-            ) {
-                if (submitting) CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.height(22.dp))
-                else Text("Request my Champ", fontWeight = FontWeight.Bold)
-            }
-            Text("We'll confirm on WhatsApp. You pay only after the visit.", style = MaterialTheme.typography.bodyMedium, color = Brand.Muted)
+            EstimateCard(config, f, busy, submit)
             Spacer(Modifier.height(24.dp))
         }
     }
-}
 
-@Composable
-private fun StepTitle(number: String, title: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            number, color = Color.White, fontWeight = FontWeight.Bold,
-            modifier = Modifier.background(Brand.Gold, RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 2.dp),
+    if (gate && done == null) {
+        EmergencyGate(config, onDismiss = { gate = false }, onContinue = { gate = false })
+    }
+    if (pickerOpen) {
+        DateTimePicker(
+            initial = f.requestedAtMillis,
+            onDismiss = { pickerOpen = false },
+            onPicked = { millis -> pickerOpen = false; f = f.copy(requestedAtMillis = millis) },
         )
-        Text("  $title", style = MaterialTheme.typography.titleLarge, color = Brand.Navy)
     }
 }
 
+private fun fontColor() = Brand.B700
+
 @Composable
-private fun CheckRow(checked: Boolean, onChange: (Boolean) -> Unit, text: String) {
-    Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked = checked, onCheckedChange = onChange)
-        Text(text, style = MaterialTheme.typography.bodyMedium)
-    }
+private fun StepTitle(text: String) {
+    Text(text, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Brand.Ink)
 }
 
-/** Text field with live place suggestions from the server's Gurugram gazetteer. */
 @Composable
-private fun PlaceField(
-    label: String,
-    hint: String,
-    type: String,
-    value: String,
-    onValue: (String) -> Unit,
-    onPick: (Place) -> Unit,
-    picked: Boolean,
-) {
-    var suggestions by remember { mutableStateOf<List<Place>>(emptyList()) }
-    LaunchedEffect(value, picked) {
-        suggestions = emptyList()
-        val q = value.trim()
-        if (picked || q.length < 3) return@LaunchedEffect
-        delay(350)
-        suggestions = runCatching {
-            val res = Api.get("/api/v1/public/places?type=$type&q=${Api.enc(q.substringAfterLast(',').trim().ifBlank { q })}")
-            (res as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull { el ->
-                val o = el as? JsonObject ?: return@mapNotNull null
-                val name = o.str("name") ?: return@mapNotNull null
-                Place(name, o.str("address") ?: name, o.str("lat")?.toDoubleOrNull(), o.str("lng")?.toDoubleOrNull())
-            }.take(5)
-        }.getOrDefault(emptyList())
-    }
-    Column {
-        OutlinedTextField(
-            value, onValue, label = { Text(label) }, placeholder = { Text(hint) },
-            supportingText = if (picked) ({ Text("📍 Location pinned", color = Brand.Success) }) else null,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        suggestions.forEach { p ->
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { suggestions = emptyList(); onPick(p) }
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-            ) {
-                Text(p.name, style = MaterialTheme.typography.titleMedium, color = Brand.Navy)
-                if (p.address != p.name) Text(p.address, style = MaterialTheme.typography.bodyMedium, color = Brand.Muted)
+private fun EstimateCard(config: AppConfig, f: BookingForm, busy: Boolean, onSubmit: () -> Unit) {
+    val rule = config.ruleFor(f.serviceType.ifBlank { null })
+    AppCard {
+        if (rule != null) {
+            Column(Modifier.testTag("estimate")) {
+                Text("Estimated", fontSize = 12.sp, color = Brand.Slate500)
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp)) { append(Format.inr(rule.baseFee)) }
+                        withStyle(SpanStyle(color = Brand.Slate500, fontSize = 14.sp)) {
+                            append("  first ${rule.includedHours} h · then ${Format.inr(rule.extensionPerHour)}/h")
+                            if (rule.taxPercent > 0) append(" + ${rule.taxPercent.toInt()}% GST")
+                        }
+                    },
+                )
+                Text("Pay after the service", fontSize = 12.sp, color = Brand.Slate500)
             }
-            HorizontalDivider()
+        }
+        AppButton("Confirm request", onSubmit, Modifier.fillMaxWidth().testTag("book-submit"), BtnKind.Primary, large = true, loading = busy)
+    }
+}
+
+@Composable
+private fun BookSuccess(result: BookResult, config: AppConfig, onTrack: () -> Unit, onHome: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+    ) {
+        AppCard(padding = 24.dp, spacing = 10.dp) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(72.dp).clip(CircleShape).background(Brand.Emerald50), contentAlignment = Alignment.Center) {
+                    Ic(R.drawable.fi_check_circle, tint = Brand.Emerald500, size = 44.dp)
+                }
+                Spacer(Modifier.height(14.dp))
+                Text("We’ve received your request.", style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.testTag("book-success"))
+                Spacer(Modifier.height(8.dp))
+                Text("Request ID", color = Brand.Slate600)
+                Text(result.number, fontFamily = Fraunces, fontWeight = FontWeight.SemiBold, fontSize = 38.sp, color = Brand.B800, modifier = Modifier.testTag("book-request-number"))
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Our support team is reviewing it and will contact you shortly" +
+                        (if (result.humanReview) " — because of the details you shared, a care team member will call you personally before confirming" else "") + ".",
+                    color = Brand.Slate600, textAlign = TextAlign.Center, fontSize = 15.sp, lineHeight = 22.sp,
+                )
+            }
+            Notice(
+                "This is not an emergency service. If your loved one has life-threatening symptoms, call ${config.emergencyNumber} or ${config.ambulanceNumber} now.",
+                bg = Brand.Red50, fg = Brand.Red900, border = Brand.Red100,
+            )
+            Notice(
+                "We’ll send you a notification at every step. You can follow this request any time from “My bookings”.",
+                bg = Brand.B50, fg = Brand.B800, border = Brand.B100, icon = R.drawable.fi_bell,
+            )
+            AppButton("Track this request", onTrack, Modifier.fillMaxWidth().testTag("book-track"), BtnKind.Primary, trailingIcon = R.drawable.fi_arrow_right, large = true)
+            AppButton("Back to home", onHome, Modifier.fillMaxWidth(), BtnKind.Ghost)
         }
     }
 }
 
-private fun isoTime(c: Calendar): String =
-    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(c.time)
+/** Text field with place suggestions from the server (same search as the website). */
+@Composable
+fun PlaceField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onPick: (Place) -> Unit,
+    type: String,
+    placeholder: String,
+    tag: String,
+) {
+    var typing by remember { mutableStateOf(false) }
+    var results by remember { mutableStateOf<List<Place>>(emptyList()) }
+    LaunchedEffect(value, typing) {
+        if (!typing || value.trim().length < 2) {
+            results = emptyList()
+            return@LaunchedEffect
+        }
+        delay(250)
+        results = runCatching { Repo.places(value.trim(), type) }.getOrDefault(emptyList())
+    }
+    Column {
+        AppTextField(value, { typing = true; onValueChange(it.take(300)) }, placeholder = placeholder, tag = tag, leading = if (type == "hospital") R.drawable.fa_hospital else R.drawable.fi_map_pin)
+        if (typing && results.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White,
+                shadowElevation = 6.dp,
+                border = BorderStroke(1.dp, Brand.Slate200),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp).testTag("$tag-options"),
+            ) {
+                Column(Modifier.padding(4.dp)) {
+                    results.take(6).forEachIndexed { i, p ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable {
+                                typing = false
+                                results = emptyList()
+                                onPick(p)
+                            }.padding(horizontal = 10.dp, vertical = 9.dp).testTag("$tag-option-$i"),
+                        ) {
+                            Ic(R.drawable.fi_map_pin, Modifier.padding(top = 3.dp), tint = Brand.B600, size = 15.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(p.name, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Text(p.address + if (p.inArea == false) " · outside service area" else "", fontSize = 12.sp, color = Brand.Slate500, lineHeight = 16.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DateTimePicker(initial: Long?, onDismiss: () -> Unit, onPicked: (Long) -> Unit) {
+    val now = System.currentTimeMillis()
+    val minStart = now + 30 * 60_000L
+    val todayUtc = remember {
+        val c = Calendar.getInstance()
+        val u = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+        u.clear()
+        u.set(c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH))
+        u.timeInMillis
+    }
+    var step by remember { mutableStateOf(0) }
+    var dateUtc by remember { mutableStateOf<Long?>(null) }
+    val dateState = rememberDatePickerState(
+        initialSelectedDateMillis = todayUtc,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= todayUtc && utcTimeMillis <= todayUtc + 60L * 24 * 3600_000
+        },
+    )
+    val initCal = Calendar.getInstance().apply { timeInMillis = initial ?: (minStart + 30 * 60_000L) }
+    val timeState = rememberTimePickerState(initialHour = initCal.get(Calendar.HOUR_OF_DAY), initialMinute = (initCal.get(Calendar.MINUTE) / 5) * 5, is24Hour = false)
+
+    if (step == 0) {
+        DatePickerDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = {
+                TextButton(onClick = { dateUtc = dateState.selectedDateMillis ?: todayUtc; step = 1 }, modifier = Modifier.testTag("date-ok")) { Text("Next") }
+            },
+            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        ) { DatePicker(state = dateState) }
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Pickup time") },
+            text = { TimePicker(state = timeState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val u = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = dateUtc ?: todayUtc }
+                    val local = Calendar.getInstance().apply {
+                        clear()
+                        set(u.get(Calendar.YEAR), u.get(Calendar.MONTH), u.get(Calendar.DAY_OF_MONTH), timeState.hour, timeState.minute)
+                    }
+                    onPicked(local.timeInMillis)
+                }, modifier = Modifier.testTag("time-ok")) { Text("Done") }
+            },
+            dismissButton = { TextButton(onClick = { step = 0 }) { Text("Back") } },
+        )
+    }
+}
+
+/** One-shot location fix using the platform location service (no Google Play dependency). */
+@SuppressLint("MissingPermission")
+fun currentLocation(context: Context, onResult: (Location?) -> Unit) {
+    val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+    if (lm == null) { onResult(null); return }
+    val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.PASSIVE_PROVIDER)
+        .filter { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) }
+    val recent = providers.mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+        .filter { System.currentTimeMillis() - it.time < 10 * 60_000L }
+        .maxByOrNull { it.time }
+    if (recent != null) { onResult(recent); return }
+    val provider = providers.firstOrNull { it != LocationManager.PASSIVE_PROVIDER } ?: run { onResult(null); return }
+    var finished = false
+    val handler = android.os.Handler(Looper.getMainLooper())
+    val finish: (Location?) -> Unit = { loc -> if (!finished) { finished = true; onResult(loc) } }
+    try {
+        if (Build.VERSION.SDK_INT >= 30) {
+            lm.getCurrentLocation(provider, null, ContextCompat.getMainExecutor(context)) { finish(it) }
+        } else {
+            val listener = object : LocationListener {
+                override fun onLocationChanged(location: Location) { finish(location); lm.removeUpdates(this) }
+                // Older Android versions need these implemented (they have no default there).
+                @Deprecated("Deprecated in Java")
+                override fun onStatusChanged(provider: String, status: Int, extras: android.os.Bundle?) {}
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+            }
+            @Suppress("DEPRECATION")
+            lm.requestSingleUpdate(provider, listener, Looper.getMainLooper())
+            handler.postDelayed({ lm.removeUpdates(listener); finish(null) }, 20_000)
+        }
+    } catch (e: Exception) {
+        finish(null)
+    }
+    handler.postDelayed({ finish(null) }, 25_000)
+}

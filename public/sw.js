@@ -1,6 +1,6 @@
 // Service worker: offline shell for the Companion PWA (network-first for API, cache-first for assets).
-const CACHE = 'mc-muzr8429';
-const SHELL = ['/', '/index.html', '/assets/app.js?v=muzr8429', '/assets/app.css?v=muzr8429', '/icon.svg', '/manifest.webmanifest'];
+const CACHE = 'mc-muztdeki';
+const SHELL = ['/', '/index.html', '/assets/app.js?v=muztdeki', '/assets/app.css?v=muztdeki', '/icon.svg', '/manifest.webmanifest'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {

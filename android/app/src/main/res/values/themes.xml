@@ -2,7 +2,13 @@
 <resources>
     <style name="Theme.ChampOnCall" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/ivory</item>
-        <item name="android:statusBarColor">@color/navy</item>
-        <item name="android:navigationBarColor">@color/ivory</item>
+        <item name="android:statusBarColor">@color/ivory</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
+    </style>
+
+    <style name="Theme.ChampOnCall.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/navy</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.ChampOnCall</item>
     </style>
 </resources>
