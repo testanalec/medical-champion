@@ -1,0 +1,125 @@
+name: Build Android app
+# Builds the ChampOnCall customer app (android/), runs the unit tests, lint and the full UI test suite
+# on an Android emulator, then publishes the APK, test results and screenshots to the "android-builds" branch.
+# Runs after every upload is applied, or by hand from the Actions tab.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Apply upload and rebuild']
+    types: [completed]
+permissions:
+  contents: write
+concurrency:
+  group: android-build
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Firebase config (optional)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json; echo "Push enabled"; else echo "No GOOGLE_SERVICES_JSON secret: building without Firebase push"; fi
+
+      - name: Build, unit tests and lint
+        id: build
+        working-directory: android
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          gradle assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug --no-daemon --stacktrace --continue 2>&1 | tee ../build.log
+
+      - name: Enable KVM for the emulator
+        if: always()
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: UI tests on an Android 14 emulator
+        id: uitest
+        if: always() && hashFiles('android/app/build/outputs/apk/androidTest/debug/*.apk') != ''
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          working-directory: android
+          script: |
+            adb logcat -c || true
+            gradle connectedDebugAndroidTest --no-daemon --continue -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true > ../uitest.log 2>&1; echo $? > ../uitest.exit
+            adb pull /sdcard/Android/data/com.champoncall.app/files/screenshots ../shots-fallback > /dev/null 2>&1 || true
+            adb logcat -d > ../logcat.txt 2>&1 || true
+
+      - name: Collect results
+        if: always()
+        run: |
+          OUT=/tmp/out
+          mkdir -p $OUT/screenshots $OUT/test-results
+          cp build.log $OUT/ 2>/dev/null || true
+          cp uitest.log $OUT/ 2>/dev/null || true
+          grep -E "AndroidRuntime|FATAL|champoncall" logcat.txt 2>/dev/null | tail -400 > $OUT/logcat-app.txt || true
+          find android/app/build/outputs -path "*additional_output*" -name "*.png" -exec cp {} $OUT/screenshots/ \; 2>/dev/null || true
+          cp shots-fallback/*.png $OUT/screenshots/ 2>/dev/null || true
+          cp android/app/build/test-results/testDebugUnitTest/*.xml $OUT/test-results/ 2>/dev/null || true
+          find android/app/build/outputs/androidTest-results -name "*.xml" -exec cp {} $OUT/test-results/ \; 2>/dev/null || true
+          cp android/app/build/reports/lint-results-debug.txt $OUT/lint.txt 2>/dev/null || true
+          cp android/app/build/outputs/apk/debug/app-debug.apk $OUT/ChampOnCall-debug.apk 2>/dev/null || true
+          python3 - "$OUT" "${{ steps.build.outcome }}" "$(cat uitest.exit 2>/dev/null || echo skipped)" "$GITHUB_SHA" <<'PY'
+          import sys, glob, os, xml.etree.ElementTree as ET, datetime
+          out, build, ui, sha = sys.argv[1:5]
+          rows, fails = [], []
+          for f in sorted(glob.glob(os.path.join(out, 'test-results', '*.xml'))):
+              try:
+                  r = ET.parse(f).getroot()
+              except Exception:
+                  continue
+              suites = [r] if r.tag == 'testsuite' else r.findall('testsuite')
+              for s in suites:
+                  t, fl, er, sk = (int(s.get(k, 0)) for k in ('tests', 'failures', 'errors', 'skipped'))
+                  rows.append((s.get('name'), t, fl + er, sk))
+                  for c in s.findall('testcase'):
+                      for bad in c.findall('failure') + c.findall('error'):
+                          fails.append(f"- {s.get('name')}.{c.get('name')}: {(bad.get('message') or bad.text or '')[:700]}")
+          total = sum(r[1] for r in rows); failed = sum(r[2] for r in rows)
+          shots = sorted(os.listdir(os.path.join(out, 'screenshots')))
+          lines = [f"# ChampOnCall Android build", "", f"Built {datetime.datetime.utcnow():%Y-%m-%d %H:%M} UTC from {sha}", "",
+                   f"- Build: **{build}**", f"- UI tests exit code: **{ui}**", f"- Tests: **{total} run, {failed} failed**",
+                   f"- Screenshots: {len(shots)}", "", "| Suite | Tests | Failed | Skipped |", "|---|---|---|---|"]
+          lines += [f"| {n} | {t} | {f} | {s} |" for n, t, f, s in rows]
+          if fails: lines += ["", "## Failures", ""] + fails
+          open(os.path.join(out, 'SUMMARY.md'), 'w').write("\n".join(lines) + "\n")
+          open(os.path.join(out, 'STATUS'), 'w').write("PASS\n" if build == 'success' and ui == '0' and failed == 0 and total > 0 else "FAIL\n")
+          print("\n".join(lines))
+          PY
+
+      - name: Publish to android-builds branch
+        if: always()
+        run: |
+          cd /tmp/out
+          git init -q -b android-builds
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -q -m "Android build $(cat STATUS)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" android-builds
+
+      - name: Fail if the build or tests failed
+        if: always()
+        run: test "$(cat /tmp/out/STATUS)" = "PASS"
