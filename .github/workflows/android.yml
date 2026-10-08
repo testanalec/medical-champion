@@ -1,0 +1,55 @@
+name: Build Android app
+# Builds the ChampOnCall customer app (android/) and publishes the APK and build log
+# to the "android-builds" branch. Runs after every upload is applied, or by hand from the Actions tab.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Apply upload and rebuild']
+    types: [completed]
+permissions:
+  contents: write
+concurrency:
+  group: android-build
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Firebase config (optional)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json; echo "Push enabled"; else echo "No GOOGLE_SERVICES_JSON secret: building without push"; fi
+      - name: Build APK
+        id: build
+        working-directory: android
+        run: |
+          set -o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee ../build.log
+        continue-on-error: true
+      - name: Publish to android-builds branch
+        run: |
+          mkdir -p /tmp/out
+          cp build.log /tmp/out/build.log
+          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/out/ChampOnCall-debug.apk 2>/dev/null || true
+          echo "Built from ${GITHUB_SHA} at $(date -u)  result: ${{ steps.build.outcome }}" > /tmp/out/README.md
+          cd /tmp/out
+          git init -q -b android-builds
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -q -m "Android build ${{ steps.build.outcome }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" android-builds
+      - name: Fail if the build failed
+        if: steps.build.outcome != 'success'
+        run: exit 1
