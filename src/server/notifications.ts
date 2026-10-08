@@ -3,6 +3,7 @@ import { sql } from './db';
 import { sendWhatsApp, OutMsg } from './wa';
 import { getSetting } from './settings';
 import { patientRef, fmtINR, fmtDuration } from '../shared/constants';
+import { pushToRequest } from './push';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -160,7 +161,11 @@ export async function notifyCustomer(requestId: string, template: string, event:
   const r = (await sql`SELECT c.phone FROM service_requests r JOIN customers c ON c.id = r.customer_id WHERE r.id = ${requestId}`)[0];
   if (!r) return null;
   if (statusEventId) await sql`UPDATE status_events SET notification_status = 'QUEUED' WHERE id = ${statusEventId}`;
-  return notify({ requestId, statusEventId, event, recipientType: 'customer', recipient: r.phone, channel: 'WHATSAPP', template, variables: vars });
+  const n: any = await notify({ requestId, statusEventId, event, recipientType: 'customer', recipient: r.phone, channel: 'WHATSAPP', template, variables: vars });
+  // Mirror the update to the customer app (no-op unless push is configured and the app is following this request)
+  const text = String(n?.body || '').replace(/\*/g, '').trim();
+  if (text) await pushToRequest(requestId, `ChampOnCall · ${vars.request_number || 'Booking update'}`, text);
+  return n;
 }
 
 export async function alertOps(requestId: string | null, event: string, title: string, body: string, severity: 'INFO' | 'WARNING' | 'URGENT' | 'CRITICAL' = 'INFO') {

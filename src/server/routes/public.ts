@@ -13,6 +13,7 @@ import { sha256, can } from '../auth';
 import { tick } from '../sla';
 import { STATUS_LABEL, patientRef } from '../../shared/constants';
 import { DEMO_USERS } from '../seed';
+import { registerPushToken } from '../push';
 
 export function registerPublic(r: Router) {
   r.get('/api/v1/health', async () => {
@@ -147,6 +148,16 @@ export function registerPublic(r: Router) {
                                  WHERE r.request_number = ${rn} AND c.phone = ${phone}`)[0] : null;
     if (!r) throw notFound('No request found for that ID and mobile number');
     return { track_url: `/track/${r.request_number}?t=${r.tracking_token}` };
+  });
+
+  // Customer app: follow a request with push notifications (token protected like tracking)
+  r.post('/api/v1/public/track/:number/push', async (ctx) => {
+    const r = await loadTracked(ctx);
+    await rateLimit(`push:${ctx.ip}`, 30, 3600);
+    const token = str(ctx.body.token, 4096);
+    if (!token || token.length < 20) throw bad('Missing device token');
+    await registerPushToken(r.id, token, str(ctx.body.platform, 20) || 'android');
+    return { ok: true };
   });
 
   // FRD §23 – ratings with separate trust-again metric
