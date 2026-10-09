@@ -143,6 +143,8 @@ abstract class UiTest {
     }
 
     fun shot(name: String) {
+        // Screenshots show the screen as a customer sees it, without the on-screen keyboard
+        runCatching { androidx.test.espresso.Espresso.closeSoftKeyboard() }
         compose.waitForIdle()
         Screenshots.take(name)
     }

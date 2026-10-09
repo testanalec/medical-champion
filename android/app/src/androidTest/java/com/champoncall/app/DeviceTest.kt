@@ -105,7 +105,7 @@ class DeviceTest {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         device.openNotification()
         device.waitForIdle()
-        Thread.sleep(1200)
+        Thread.sleep(2500)
         Screenshots.take("82_status_notification")
         device.pressBack()
 

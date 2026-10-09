@@ -397,6 +397,7 @@ fun PlaceField(
 ) {
     var typing by remember { mutableStateOf(false) }
     var results by remember { mutableStateOf<List<Place>>(emptyList()) }
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
     LaunchedEffect(value, typing) {
         if (!typing || value.trim().length < 2) {
             results = emptyList()
@@ -406,7 +407,11 @@ fun PlaceField(
         results = runCatching { Repo.places(value.trim(), type) }.getOrDefault(emptyList())
     }
     Column {
-        AppTextField(value, { typing = true; onValueChange(it.take(300)) }, placeholder = placeholder, tag = tag, leading = if (type == "hospital") R.drawable.fa_hospital else R.drawable.fi_map_pin)
+        AppTextField(value, { new ->
+            // Keyboards can re-send the same text after a suggestion is picked; only real edits count.
+            val v = new.take(300)
+            if (v != value) { typing = true; onValueChange(v) }
+        }, placeholder = placeholder, tag = tag, leading = if (type == "hospital") R.drawable.fa_hospital else R.drawable.fi_map_pin)
         if (typing && results.isNotEmpty()) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -421,6 +426,7 @@ fun PlaceField(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable {
                                 typing = false
                                 results = emptyList()
+                                focus.clearFocus()
                                 onPick(p)
                             }.padding(horizontal = 10.dp, vertical = 9.dp).testTag("$tag-option-$i"),
                         ) {

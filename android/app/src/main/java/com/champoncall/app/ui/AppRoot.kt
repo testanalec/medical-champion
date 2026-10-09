@@ -36,6 +36,8 @@ import com.champoncall.app.data.AppPrefs
 import com.champoncall.app.data.Repo
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import android.os.Handler
+import android.os.Looper
 
 /** Where the app should go when opened from a notification or a link. */
 sealed class Destination {
@@ -66,7 +68,8 @@ fun AppRoot(start: Destination? = null, nav: NavHostController = rememberNavCont
     val toast: (String) -> Unit = { msg -> scope.launch { snackbar.currentSnackbarData?.dismiss(); snackbar.showSnackbar(msg) } }
     val startRoute = remember { if (AppPrefs.onboarded(context)) "home" else "onboarding" }
 
-    fun go(d: Destination) {
+    // Navigation must happen on the main thread; links and lookups can finish on a background thread.
+    fun go(d: Destination) = onMain {
         when (d) {
             is Destination.Track -> nav.navigate("track/${d.number}") { launchSingleTop = true }
             is Destination.Pay -> nav.navigate("pay/${d.id}?t=${d.token}") { launchSingleTop = true }
@@ -74,8 +77,8 @@ fun AppRoot(start: Destination? = null, nav: NavHostController = rememberNavCont
     }
 
     LaunchedEffect(Unit) {
-        Repo.refreshConfig()
         if (start != null && startRoute == "home") go(start)
+        launch { Repo.refreshConfig() }
         Navigator.incoming.collect { go(it) }
     }
 
@@ -155,7 +158,7 @@ fun AppRoot(start: Destination? = null, nav: NavHostController = rememberNavCont
                     composable("find") {
                         FindScreen(
                             onBack = { nav.popBackStack() },
-                            onFound = { n -> nav.navigate("track/$n") { popUpTo("find") { inclusive = true } } },
+                            onFound = { n -> onMain { nav.navigate("track/$n") { popUpTo("find") { inclusive = true } } } },
                         )
                     }
                     composable("track/{number}", arguments = listOf(navArgument("number") { type = NavType.StringType })) { e ->
@@ -188,3 +191,10 @@ fun AppRoot(start: Destination? = null, nav: NavHostController = rememberNavCont
     }
 }
 
+
+private val mainHandler = Handler(Looper.getMainLooper())
+
+/** Runs [block] on the main thread (immediately if already there). */
+fun onMain(block: () -> Unit) {
+    if (Looper.myLooper() == Looper.getMainLooper()) block() else mainHandler.post(block)
+}

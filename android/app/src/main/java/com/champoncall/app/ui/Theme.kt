@@ -80,6 +80,10 @@ private val colors = lightColorScheme(
     secondaryContainer = Brand.Warm100,
     onSecondaryContainer = Brand.Gold600,
     tertiary = Brand.WhatsApp,
+    tertiaryContainer = Brand.Warm100,
+    onTertiaryContainer = Brand.Gold600,
+    surfaceContainerHighest = Brand.Slate100,
+    surfaceContainerLowest = Color.White,
     background = Brand.Warm50,
     onBackground = Brand.Ink,
     surface = Color.White,
@@ -94,7 +98,8 @@ private val colors = lightColorScheme(
     error = Brand.Red600,
 )
 
-private val base = TextStyle(fontFamily = Inter, color = Brand.Ink)
+// No colour here: text takes the colour of its surface/button (LocalContentColor).
+private val base = TextStyle(fontFamily = Inter)
 
 private val typography = Typography(
     displaySmall = TextStyle(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold, fontSize = 38.sp, lineHeight = 42.sp, letterSpacing = (-0.5).sp),
