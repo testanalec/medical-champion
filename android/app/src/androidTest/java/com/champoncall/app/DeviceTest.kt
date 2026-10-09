@@ -50,6 +50,8 @@ class DeviceTest {
         AppPrefs.setOnboarded(context)
         Repo.resetConfig()
         context.getSystemService(NotificationManager::class.java).cancelAll()
+        // Background checks scheduled by earlier tests must not race with these tests
+        androidx.work.WorkManager.getInstance(context).cancelAllWork()
     }
 
     @After
@@ -98,8 +100,14 @@ class DeviceTest {
         runBlocking { StatusWorker.checkAll(context) }
 
         assertEquals("EN_ROUTE", Bookings.find(context, "MC-20001")!!.lastStatus)
-        val shown = context.getSystemService(NotificationManager::class.java).activeNotifications
-        val n = shown.firstOrNull { it.notification.extras.getString("android.title") == "ChampOnCall · MC-20001" }
+        // Posting a notification is asynchronous: give the system a moment to list it
+        var n: android.service.notification.StatusBarNotification? = null
+        val until = System.currentTimeMillis() + 8_000
+        while (n == null && System.currentTimeMillis() < until) {
+            n = context.getSystemService(NotificationManager::class.java).activeNotifications
+                .firstOrNull { it.notification.extras.getCharSequence("android.title")?.toString() == "ChampOnCall · MC-20001" }
+            if (n == null) Thread.sleep(250)
+        }
         assertNotNull("a status notification should be shown", n)
         assertTrue(n!!.notification.extras.getCharSequence("android.text").toString().contains("Amit Kumar is on the way"))
 
@@ -113,7 +121,8 @@ class DeviceTest {
         // No second notification when nothing changed
         context.getSystemService(NotificationManager::class.java).cancelAll()
         runBlocking { StatusWorker.checkAll(context) }
-        assertTrue(context.getSystemService(NotificationManager::class.java).activeNotifications.isEmpty())
+        Thread.sleep(1500)
+        assertTrue(context.getSystemService(NotificationManager::class.java).activeNotifications.none { it.packageName == context.packageName })
     }
 
     @Test
