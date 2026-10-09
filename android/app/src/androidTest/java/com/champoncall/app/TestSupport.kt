@@ -104,6 +104,9 @@ object Screenshots {
     }
 
     fun take(name: String) {
+        // Espresso drops its own debug images here; they are noise in the published screenshots
+        dir.listFiles { f -> f.name.startsWith("view-op-error") }?.forEach { it.delete() }
+        DeviceSetup.dismissSystemDialogs()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         instrumentation.waitForIdleSync()
         Thread.sleep(350)
@@ -111,6 +114,22 @@ object Screenshots {
         val small = Bitmap.createScaledBitmap(full, full.width / 2, full.height / 2, true)
         File(dir, "$name.png").outputStream().use { small.compress(Bitmap.CompressFormat.PNG, 100, it) }
         Log.i("Screenshots", "saved $name to $dir")
+    }
+}
+
+/** Keeps the shared CI emulator tidy: no "X isn't responding" system pop-ups over our screens. */
+object DeviceSetup {
+    fun prepare() {
+        val ui = InstrumentationRegistry.getInstrumentation().uiAutomation
+        runCatching { ui.executeShellCommand("settings put global hide_error_dialogs 1").close() }
+        dismissSystemDialogs()
+    }
+
+    fun dismissSystemDialogs() {
+        runCatching {
+            val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            device.findObject(androidx.test.uiautomator.By.text("Wait"))?.click()
+        }
     }
 }
 
@@ -127,6 +146,7 @@ abstract class UiTest {
         server = MockWebServer()
         server.dispatcher = api
         server.start()
+        DeviceSetup.prepare()
         Api.base = server.url("/").toString().trimEnd('/')
         AppPrefs.reset(context)
         AppPrefs.setOnboarded(context)
@@ -166,11 +186,13 @@ fun ComposeTestRule.waitSnackbarGone() =
     waitUntil(WAIT) { onAllNodes(hasTestTag("snackbar")).fetchSemanticsNodes().all { it.children.isEmpty() } }
 
 fun ComposeTestRule.tap(tag: String) {
+    waitSnackbarGone()
     waitTag(tag)
     onNodeWithTag(tag).performScrollTo().performClick()
 }
 
 fun ComposeTestRule.tapNoScroll(tag: String) {
+    waitSnackbarGone()
     waitTag(tag)
     onNodeWithTag(tag).performClick()
 }

@@ -44,6 +44,7 @@ class DeviceTest {
         server = MockWebServer()
         server.dispatcher = api
         server.start()
+        DeviceSetup.prepare()
         Api.base = server.url("/").toString().trimEnd('/')
         AppPrefs.reset(context)
         AppPrefs.setOnboarded(context)
