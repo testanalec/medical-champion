@@ -119,13 +119,12 @@ fun HomeScreen(
     val context = LocalContext.current
     val config by Repo.config.collectAsState()
     var gate by remember { mutableStateOf(false) }
-    val active = remember { mutableStateListOf<SavedBooking>() }
+    // Filled straight away (not after loading) so the card is on screen from the first frame
+    val active = remember { mutableStateListOf<SavedBooking>().apply { addAll(Bookings.all(context).filter { !Stages.isFinal(it.lastStatus) }.take(3)) } }
 
     LaunchedEffect(Unit) {
         Repo.refreshConfig()
-        val open = Bookings.all(context).filter { !Stages.isFinal(it.lastStatus) }.take(3)
-        active.clear()
-        active.addAll(open)
+        val open = active.toList()
         open.forEach { b ->
             runCatching { Repo.track(b.number, b.token) }.getOrNull()?.let { t ->
                 Bookings.updateStatus(context, b.number, t.status, t.statusLabel, t.serviceType)

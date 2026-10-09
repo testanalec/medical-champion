@@ -51,6 +51,7 @@ class BookTest : UiTest() {
         compose.tap("book-submit")
         compose.waitText("Please add: who needs help")
         shot("22_book_validation")
+        compose.waitSnackbarGone()
 
         compose.tap("rel-Mother")
         type("book-patient-name", "Kamla Devi")

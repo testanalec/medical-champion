@@ -23,7 +23,7 @@ class HomeTest : UiTest() {
         shot("01_home_top")
 
         compose.scrollHomeTo("Someone will be there.")
-        compose.onNodeWithText("We assign a verified companion").assertIsDisplayed()
+        compose.waitText("We assign a verified companion")
         shot("02_home_how_it_works")
 
         compose.scrollHomeTo("Every part of the hospital visit")

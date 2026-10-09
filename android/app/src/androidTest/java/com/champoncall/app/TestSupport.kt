@@ -161,6 +161,10 @@ fun ComposeTestRule.waitTag(tag: String) =
 fun ComposeTestRule.waitGone(tag: String) =
     waitUntil(WAIT) { onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isEmpty() }
 
+/** Waits for the pop-up message at the bottom to go away (it would cover what we tap next). */
+fun ComposeTestRule.waitSnackbarGone() =
+    waitUntil(WAIT) { onAllNodes(hasTestTag("snackbar")).fetchSemanticsNodes().all { it.children.isEmpty() } }
+
 fun ComposeTestRule.tap(tag: String) {
     waitTag(tag)
     onNodeWithTag(tag).performScrollTo().performClick()

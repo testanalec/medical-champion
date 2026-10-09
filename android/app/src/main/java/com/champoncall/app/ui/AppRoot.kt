@@ -69,7 +69,12 @@ fun AppRoot(start: Destination? = null, nav: NavHostController = rememberNavCont
     val startRoute = remember { if (AppPrefs.onboarded(context)) "home" else "onboarding" }
 
     // Navigation must happen on the main thread; links and lookups can finish on a background thread.
-    fun go(d: Destination) = onMain {
+    fun go(d: Destination): Unit = onMain {
+        // The navigation graph is attached on the first frame; links can arrive just before that.
+        if (runCatching { nav.graph }.isFailure) {
+            onMainDelayed(50) { go(d) }
+            return@onMain
+        }
         when (d) {
             is Destination.Track -> nav.navigate("track/${d.number}") { launchSingleTop = true }
             is Destination.Pay -> nav.navigate("pay/${d.id}?t=${d.token}") { launchSingleTop = true }
@@ -193,6 +198,10 @@ fun AppRoot(start: Destination? = null, nav: NavHostController = rememberNavCont
 
 
 private val mainHandler = Handler(Looper.getMainLooper())
+
+fun onMainDelayed(ms: Long, block: () -> Unit) {
+    mainHandler.postDelayed(block, ms)
+}
 
 /** Runs [block] on the main thread (immediately if already there). */
 fun onMain(block: () -> Unit) {
