@@ -4,6 +4,7 @@ import { sendWhatsApp, OutMsg } from './wa';
 import { getSetting } from './settings';
 import { patientRef, fmtINR, fmtDuration } from '../shared/constants';
 import { pushToRequest } from './push';
+import { sendEmail, opsEmails, ensureEmailColumns, validEmail } from './email';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -165,11 +166,46 @@ export async function notifyCustomer(requestId: string, template: string, event:
   // Mirror the update to the customer app (no-op unless push is configured and the app is following this request)
   const text = String(n?.body || '').replace(/\*/g, '').trim();
   if (text) await pushToRequest(requestId, `ChampOnCall · ${vars.request_number || 'Booking update'}`, text);
+  // ...and to the customer's email, when they gave one
+  try {
+    const s = await getSetting('email');
+    const c = (await sql`SELECT c.email FROM service_requests r JOIN customers c ON c.id = r.customer_id WHERE r.id = ${requestId}`)[0];
+    if (s.customer_updates !== false && text && validEmail(c?.email)) {
+      const heading = EVENT_HEADINGS[event] || humanize(event);
+      await sendEmail({
+        to: c.email, subject: `${heading} · ${vars.request_number || 'ChampOnCall'}`, heading, text: String(n?.body || text),
+        buttonText: 'Track your request', buttonUrl: vars.track_url, recipientType: 'customer', requestId, event,
+      });
+    }
+  } catch (e: any) {
+    console.error('[email] customer update failed', e?.message);
+  }
   return n;
 }
 
+const EVENT_HEADINGS: Record<string, string> = {
+  request_created: 'We’ve received your request',
+  human_review: 'Our care team will call you',
+};
+const humanize = (e: string) => e.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+
 export async function alertOps(requestId: string | null, event: string, title: string, body: string, severity: 'INFO' | 'WARNING' | 'URGENT' | 'CRITICAL' = 'INFO') {
-  return notify({ requestId, event, recipientType: 'ops', recipient: 'ops', channel: 'INTERNAL', title, body, severity });
+  const n = await notify({ requestId, event, recipientType: 'ops', recipient: 'ops', channel: 'INTERNAL', title, body, severity });
+  // Email copy to the operations inbox(es)
+  try {
+    const s = await getSetting('email');
+    const to = await opsEmails();
+    if (s.ops_updates !== false && to.length) {
+      await sendEmail({
+        to, subject: `${severity === 'INFO' ? '' : `[${severity}] `}${title}`, heading: title, text: body,
+        buttonText: requestId ? 'Open in Operations' : 'Open Operations', buttonUrl: `${baseUrl()}/ops${requestId ? `/requests/${requestId}` : ''}`,
+        recipientType: 'ops', requestId, event,
+      });
+    }
+  } catch (e: any) {
+    console.error('[email] ops alert failed', e?.message);
+  }
+  return n;
 }
 
 export async function notifyCompanion(companionId: string, requestId: string | null, event: string, title: string, body: string) {
@@ -178,4 +214,18 @@ export async function notifyCompanion(companionId: string, requestId: string | n
   // In-app (PWA) notification record + SMS fallback
   await notify({ requestId, event, recipientType: 'companion', recipient: companionId, channel: 'INTERNAL', title, body, severity: 'URGENT' });
   await notify({ requestId, event, recipientType: 'companion', recipient: c.phone, channel: 'SMS', title, body: `${title}: ${body}` });
+  // Email copy when the companion has an email address on file
+  try {
+    await ensureEmailColumns();
+    const s = await getSetting('email');
+    const e = (await sql`SELECT email FROM companions WHERE id = ${companionId}`)[0]?.email;
+    if (s.companion_updates !== false && validEmail(e)) {
+      await sendEmail({
+        to: e, subject: `ChampOnCall · ${title}`, heading: title, text: body,
+        buttonText: 'Open the companion app', buttonUrl: `${baseUrl()}/companion`, recipientType: 'companion', requestId, event,
+      });
+    }
+  } catch (err: any) {
+    console.error('[email] companion update failed', err?.message);
+  }
 }

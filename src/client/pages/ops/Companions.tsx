@@ -65,7 +65,7 @@ export function Companions() {
 
 function CompanionForm({ c, onClose, onDone }: { c?: any; onClose: () => void; onDone: (c: any) => void }) {
   const cfg = useConfig();
-  const [f, setF] = useState<any>({ name: c?.name || '', phone: c?.phone || '', gender: c?.gender || '', home_area: c?.home_area || '', languages: c?.languages || ['Hindi'], skills: (c?.skills || []).join(', '), notes: c?.notes || '' });
+  const [f, setF] = useState<any>({ name: c?.name || '', phone: c?.phone || '', gender: c?.gender || '', home_area: c?.home_area || '', email: c?.email || '', languages: c?.languages || ['Hindi'], skills: (c?.skills || []).join(', '), notes: c?.notes || '' });
   const { busy, run } = useAction();
   const toggleLang = (l: string) => setF({ ...f, languages: f.languages.includes(l) ? f.languages.filter((x: string) => x !== l) : [...f.languages, l] });
   return (
@@ -77,6 +77,7 @@ function CompanionForm({ c, onClose, onDone }: { c?: any; onClose: () => void; o
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Full name"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
         <Field label="Mobile (login via OTP)"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
+        <Field label="Email (optional — job updates are emailed too)" className="sm:col-span-2"><Input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="name@example.com" /></Field>
         <Field label="Gender"><Select value={f.gender} onChange={(e) => setF({ ...f, gender: e.target.value })} placeholder="—" options={['Female', 'Male', 'Other']} /></Field>
         <Field label="Base locality"><Select value={f.home_area} onChange={(e) => setF({ ...f, home_area: e.target.value })} placeholder="Select" options={HOME_AREAS} /></Field>
         <Field label="Languages" className="sm:col-span-2"><div className="flex flex-wrap gap-1.5">{(cfg?.lists.languages || []).map((l) => <button type="button" key={l} onClick={() => toggleLang(l)} className={cx('rounded-lg px-2.5 py-1 text-xs font-semibold ring-1', f.languages.includes(l) ? 'bg-brand-700 text-white ring-brand-700' : 'ring-slate-300')}>{l}</button>)}</div></Field>

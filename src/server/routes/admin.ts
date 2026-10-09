@@ -2,6 +2,7 @@ import { sql, resetDatabase } from '../db';
 import { Router, bad, notFound, str, num, normalizePhone, conflict } from '../http';
 import { requireUser, can, audit, hashPassword, PERMISSIONS } from '../auth';
 import { getAllSettings, setSetting, DEFAULT_SETTINGS, getSetting, integrationStatus } from '../settings';
+import { ensureEmailColumns, validEmail, sendEmail, emailConfigured } from '../email';
 import { companionStats, verificationComplete } from '../dispatch';
 import { GAZETTEER } from '../geo';
 import { VERIFICATION_CONTROLS, isUrgent, SERVICE_TYPE_LABEL } from '../../shared/constants';
@@ -221,6 +222,11 @@ export function registerAdmin(r: Router) {
         VALUES (${'CMP-' + (101 + n)}, ${str(b.name, 80)}, ${phone}, ${str(b.gender, 20)}, ${b.service_area_id || area?.id || null}, ${Array.isArray(b.languages) ? b.languages : []},
                 ${Array.isArray(b.skills) ? b.skills : []}, ${str(b.home_area, 60)}, ${home?.lat ?? null}, ${home?.lng ?? null}, ${str(b.photo_url, 500000)})
         RETURNING *`)[0];
+      if (validEmail(b.email)) {
+        await ensureEmailColumns();
+        await sql`UPDATE companions SET email = ${String(b.email).trim()} WHERE id = ${c.id}`;
+        c.email = String(b.email).trim();
+      }
       await audit(ctx, 'companion.create', 'companion', c.id, `Created ${c.code} ${c.name}`);
       return c;
     } catch (e: any) {
@@ -235,6 +241,12 @@ export function registerAdmin(r: Router) {
     if (!before) throw notFound();
     const patch: any = { updated_at: new Date() };
     for (const k of ['name', 'gender', 'home_area', 'notes', 'photo_url']) if (b[k] !== undefined) patch[k] = str(b[k], k === 'photo_url' ? 500000 : 500);
+    if (b.email !== undefined) {
+      await ensureEmailColumns();
+      const e = String(b.email || '').trim();
+      if (e && !validEmail(e)) throw bad('Please enter a valid email address');
+      patch.email = e || null;
+    }
     if (b.phone !== undefined) patch.phone = normalizePhone(b.phone);
     if (Array.isArray(b.languages)) patch.languages = b.languages;
     if (Array.isArray(b.skills)) patch.skills = b.skills;
@@ -273,6 +285,16 @@ export function registerAdmin(r: Router) {
   r.get('/api/v1/admin/settings', async (ctx) => {
     requireUser(ctx, 'request.view');
     return { settings: await getAllSettings(), integrations: integrationStatus(), permissions: PERMISSIONS };
+  });
+  // Sends a test email to the operations inbox(es) so the setup can be checked from Settings
+  r.post('/api/v1/admin/email/test', async (ctx) => {
+    requireUser(ctx, 'settings.edit');
+    if (!emailConfigured()) throw bad('Email is not connected yet: add RESEND_API_KEY and EMAIL_FROM in Vercel, then redeploy.');
+    const to = String(ctx.body.to || '').split(/[,;\s]+/).filter(validEmail);
+    if (!to.length) throw bad('Enter at least one email address');
+    const status = await sendEmail({ to, subject: 'ChampOnCall test email', heading: 'Email is working', text: 'This is a test email from ChampOnCall Operations. Customer, companion and operations updates will arrive like this.', recipientType: 'ops', event: 'email_test' });
+    if (status !== 'SENT') throw bad('The email could not be sent. Check the domain is verified in Resend and EMAIL_FROM uses that domain.');
+    return { ok: true };
   });
   r.put('/api/v1/admin/settings/:key', async (ctx) => {
     requireUser(ctx, 'settings.edit');

@@ -34,6 +34,10 @@ export function Settings() {
           <KeyForm k="emergency" title="Emergency contacts" value={s.emergency} onSaved={reload} fields={[['primary_number', 'Primary emergency number'], ['primary_label', 'Label'], ['ambulance_number', 'Ambulance number'], ['ambulance_label', 'Label']]}
             extra={<p className="flex gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900"><FiAlertTriangle className="mt-0.5 shrink-0" />Emergency contact details must be legally and operationally validated before production.</p>} bools={[['validated_for_production', 'Validated for production']]} />
           <KeyForm k="brand" title="Brand" value={s.brand} onSaved={reload} fields={[['name', 'Name'], ['tagline', 'Tagline'], ['city', 'Launch city']]} />
+          <KeyForm k="email" title="Email notifications" value={s.email} onSaved={reload}
+            fields={[['ops_emails', 'Operations email(s) — new requests & alerts go here (comma separated)']]}
+            bools={[['customer_updates', 'Email customers every status update (when they gave an email)'], ['ops_updates', 'Email operations alerts (new request, accepted, arrived, completed, escalations…)'], ['companion_updates', 'Email companions their job offers and updates']]}
+            extra={<EmailTest connected={!!data.integrations?.email} defaultTo={s.email?.ops_emails || ''} />} />
         </div>}
         {tab === 'templates' && <Templates />}
         {tab === 'lists' && <ListsForm value={s.lists} onSaved={reload} />}
@@ -44,6 +48,20 @@ export function Settings() {
         ]} note="Retention periods in days, per data category. Records past their period are securely deleted by the retention job." />}
         {tab === 'payout' && <KeyForm k="payout" value={s.payout} onSaved={reload} numeric fields={[['companion_base', 'Companion payout per job (₹)'], ['companion_per_extra_hour', 'Payout per extra hour (₹)']]} note="Used for contribution-margin reporting." />}
         {tab === 'security' && <SecurityTab s={s} integrations={data.integrations} onSaved={reload} />}
+      </div>
+    </div>
+  );
+}
+
+function EmailTest({ connected, defaultTo }: { connected: boolean; defaultTo: string }) {
+  const [to, setTo] = useState(defaultTo);
+  const { busy, run } = useAction();
+  return (
+    <div className="rounded-xl bg-slate-50 p-3 text-sm">
+      <p className={connected ? 'text-emerald-700' : 'text-amber-800'}>{connected ? '✓ Email sending is connected.' : 'Email sending is not connected yet — add RESEND_API_KEY and EMAIL_FROM in Vercel, then redeploy.'}</p>
+      <div className="mt-2 flex gap-2">
+        <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="you@champoncall.com" />
+        <Button className="btn-secondary" loading={!!busy} onClick={() => run('t', () => post('/api/v1/admin/email/test', { to }), 'Test email sent')}>Send test</Button>
       </div>
     </div>
   );
@@ -120,6 +138,7 @@ function SecurityTab({ s, integrations, onSaved }: { s: any; integrations: any; 
         <div className="grid gap-2">
           <I ok={integrations.whatsapp} label="WhatsApp Business Platform" env="WHATSAPP_TOKEN · WHATSAPP_PHONE_NUMBER_ID · WHATSAPP_WABA_ID · WHATSAPP_APP_SECRET · WHATSAPP_VERIFY_TOKEN" />
           <I ok={integrations.razorpay} label="Razorpay payments" env="RAZORPAY_KEY_ID · RAZORPAY_KEY_SECRET · RAZORPAY_WEBHOOK_SECRET" />
+          <I ok={integrations.email} label="Email (Resend)" env="RESEND_API_KEY · EMAIL_FROM" />
           <I ok={integrations.whatsapp} label="Companion login codes (WhatsApp)" env="Approved template mc_login_code" />
           <I ok label="Maps & geocoding" env="Built-in Gurugram gazetteer + OpenStreetMap" />
         </div>

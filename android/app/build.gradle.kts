@@ -17,9 +17,9 @@ android {
         applicationId = "com.champoncall.app"
         minSdk = 21
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2.0"
-        buildConfigField("String", "API_BASE", "\"https://champoncall.com\"")
+        versionCode = 4
+        versionName = "1.3.0"
+        buildConfigField("String", "API_BASE", "\"https://www.champoncall.com\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -37,8 +37,8 @@ android {
 
     buildTypes {
         debug {
-            // Test builds talk to the current live site until champoncall.com is connected
-            buildConfigField("String", "API_BASE", "\"https://medical-champion-zeta.vercel.app\"")
+            // Test builds use the live site too (www.champoncall.com)
+            buildConfigField("String", "API_BASE", "\"https://www.champoncall.com\"")
         }
         release {
             isMinifyEnabled = false

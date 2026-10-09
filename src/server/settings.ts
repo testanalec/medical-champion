@@ -90,6 +90,12 @@ export const DEFAULT_SETTINGS: Record<string, any> = {
     companion_base: 650,
     companion_per_extra_hour: 150,
   },
+  email: {
+    ops_emails: '',
+    customer_updates: true,
+    ops_updates: true,
+    companion_updates: true,
+  },
   security: {
     otp_ttl_seconds: 300,
     demo_mode: true,
@@ -131,6 +137,7 @@ export function integrationStatus() {
     whatsapp: !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
     razorpay: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
     sms: !!process.env.SMS_PROVIDER_KEY,
+    email: !!process.env.RESEND_API_KEY,
     maps: true, // OpenStreetMap / built-in gazetteer
   };
 }
