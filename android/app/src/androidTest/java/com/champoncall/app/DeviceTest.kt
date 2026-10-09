@@ -115,4 +115,24 @@ class DeviceTest {
         runBlocking { StatusWorker.checkAll(context) }
         assertTrue(context.getSystemService(NotificationManager::class.java).activeNotifications.isEmpty())
     }
+
+    @Test
+    fun worksInLandscapeAndOnWideScreens() {
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        device.setOrientationLeft()
+        try {
+            ActivityScenario.launch(MainActivity::class.java).use {
+                compose.waitTag("hero-title")
+                Screenshots.take("83_landscape_home")
+                compose.tapNoScroll("tab-book")
+                compose.waitTag("emergency-gate")
+                compose.tapNoScroll("gate-continue")
+                compose.waitTag("book-form")
+                Screenshots.take("84_landscape_book")
+            }
+        } finally {
+            device.setOrientationNatural()
+            device.unfreezeRotation()
+        }
+    }
 }

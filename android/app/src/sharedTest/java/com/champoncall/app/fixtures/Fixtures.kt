@@ -10,7 +10,7 @@ object Fixtures {
     val CONFIG = """
     {
       "brand": {"name": "ChampOnCall", "tagline": "When you can't be there, we can.", "city": "Gurugram"},
-      "contact": {"support_phone": "+911244000000", "support_phone_display": "+91 124 400 0000", "whatsapp_number": "919205640777",
+      "contact": {"support_phone": "+919205640777", "support_phone_display": "+91 92056 40777", "whatsapp_number": "919205640777",
                   "whatsapp_prefill": "Hi, I need a companion for my parent's hospital visit.", "support_email": "care@champoncall.com",
                   "support_hours": "7 AM – 11 PM, all days"},
       "emergency": {"primary_number": "112", "primary_label": "National Emergency Number", "ambulance_number": "108", "ambulance_label": "Ambulance"},
@@ -53,7 +53,7 @@ object Fixtures {
     """.trimIndent()
 
     private fun support() = """
-      "support": {"phone": "+911244000000", "phone_display": "+91 124 400 0000", "whatsapp": "919205640777", "hours": "7 AM – 11 PM, all days"},
+      "support": {"phone": "+919205640777", "phone_display": "+91 92056 40777", "whatsapp": "919205640777", "hours": "7 AM – 11 PM, all days"},
       "emergency": {"number": "112", "ambulance": "108"}
     """.trimIndent()
 
@@ -125,6 +125,19 @@ object Fixtures {
      "request_number": "$number", "breakdown": {"base_fee": 1499, "expenses": 180, "total": 2654.46}, "duration_minutes": 312,
      "method": ${if (paid) "\"card\"" else "null"}, "paid_at": ${if (paid) "\"2026-10-07T10:02:00.000Z\"" else "null"},
      "track_url": "/track/$number?t=$TOKEN", "gateway_live": false, "link": "https://champoncall.com/pay/$id?t=$TOKEN", "failure_reason": null}
+    """.trimIndent()
+
+    const val HISTORY_CODE = """{"sent": true, "ttl": 300, "demo_code": "123456", "channel": "demo"}"""
+
+    fun history(phone: String = "+919871510465", token: String? = "hist_tok_1") = """
+    {${if (token != null) "\"token\": \"$token\", " else ""}"phone": "$phone", "requests": [
+      {"request_number": "MC-61001", "track_url": "/track/MC-61001?t=$TOKEN", "status": "EN_ROUTE", "status_label": "Companion on the way",
+       "service_type": "Diagnostic Test", "urgency": "ASAP", "requested_datetime": "2026-10-09T05:00:00.000Z", "created_at": "2026-10-09T04:50:00.000Z",
+       "channel": "whatsapp", "amount": "1499.00", "patient_ref": "your mother", "destination": "Medanta – The Medicity"},
+      {"request_number": "MC-61002", "track_url": "/track/MC-61002?t=$TOKEN", "status": "COMPLETED", "status_label": "Completed",
+       "service_type": "Hospital / OPD", "urgency": "SCHEDULED", "requested_datetime": "2026-10-02T04:30:00.000Z", "created_at": "2026-10-01T10:00:00.000Z",
+       "channel": "web", "amount": "2654.46", "patient_ref": "your father", "destination": "Max Hospital Gurugram"}
+    ]}
     """.trimIndent()
 
     fun lookup(number: String = "MC-30003") = """{"track_url": "/track/$number?t=$TOKEN"}"""

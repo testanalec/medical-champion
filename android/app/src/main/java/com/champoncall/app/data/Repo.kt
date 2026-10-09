@@ -57,6 +57,52 @@ object Repo {
         })
     }
 
+    /** Sends a one-time code to the customer's WhatsApp so they can see all their bookings. */
+    suspend fun historyCode(phone: String): CodeResult {
+        val o = Api.post("/api/v1/public/history/code", buildJsonObject { put("phone", phone.trim()) }).asObj()
+        return CodeResult(o?.str("demo_code"), o?.str("channel"))
+    }
+
+    suspend fun historyVerify(phone: String, code: String): HistoryResult {
+        val o = Api.post("/api/v1/public/history/verify", buildJsonObject {
+            put("phone", phone.trim())
+            put("code", code.trim())
+        }).asObj() ?: throw ApiException("Unexpected reply from server")
+        return Parse.history(o)
+    }
+
+    suspend fun history(token: String): HistoryResult {
+        val o = Api.post("/api/v1/public/history", buildJsonObject { put("token", token) }).asObj() ?: throw ApiException("Unexpected reply from server")
+        return Parse.history(o)
+    }
+
+    suspend fun historyLogout(token: String) {
+        runCatching { Api.post("/api/v1/public/history/logout", buildJsonObject { put("token", token) }) }
+    }
+
+    /**
+     * Loads every booking for the verified number into "My bookings".
+     * Returns false if the phone needs to verify again.
+     */
+    suspend fun syncHistory(context: android.content.Context): Boolean {
+        val auth = HistoryAuth.load(context) ?: return true
+        val res = try {
+            history(auth.token)
+        } catch (e: ApiException) {
+            if (e.status == 401) { HistoryAuth.clear(context); return false }
+            return true
+        }
+        saveHistory(context, res.items)
+        return true
+    }
+
+    fun saveHistory(context: android.content.Context, items: List<HistoryItem>) {
+        items.forEach { h ->
+            val known = Bookings.find(context, h.number)
+            Bookings.save(context, SavedBooking(h.number, h.token, h.service, h.createdAt, known?.lastStatus ?: h.status, known?.lastLabel ?: h.statusLabel, h.channel))
+        }
+    }
+
     suspend fun pay(id: String, token: String): PayInfo {
         val o = Api.get("/api/v1/public/pay/${Api.enc(id)}?t=${Api.enc(token)}").asObj() ?: throw ApiException("Unexpected reply from server")
         return Parse.pay(o)

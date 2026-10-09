@@ -162,4 +162,27 @@ class BookTest : UiTest() {
         compose.waitTag("book-success")
         compose.waitText("a care team member will call you personally")
     }
+
+    @Test
+    fun whatsAppBookingIsOfferedOnTheForm() {
+        openForm()
+        compose.tapNoScroll("gate-continue")
+        compose.waitTag("book-whatsapp-card")
+        compose.waitTag("book-whatsapp")
+        compose.waitText("Prefer to chat? Book on WhatsApp")
+    }
+
+    @Test
+    fun pickupCanBePickedOnTheMap() {
+        openForm()
+        compose.tapNoScroll("gate-continue")
+        compose.tap("book-map")
+        compose.waitTag("map-picker")
+        Thread.sleep(4000) // let map tiles load for the screenshot
+        shot("31_book_map_picker")
+        compose.tapNoScroll("map-confirm")
+        compose.waitGone("map-picker")
+        compose.waitTag("pinned")
+        shot("32_book_map_pinned")
+    }
 }

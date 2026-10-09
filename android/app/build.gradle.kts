@@ -15,10 +15,10 @@ android {
 
     defaultConfig {
         applicationId = "com.champoncall.app"
-        minSdk = 24
+        minSdk = 21
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
         buildConfigField("String", "API_BASE", "\"https://champoncall.com\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -96,6 +96,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.0")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // OpenStreetMap map for picking the pickup point (no API key or billing needed)
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 

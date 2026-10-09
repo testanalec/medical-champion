@@ -23,8 +23,8 @@ data class AppConfig(
     val brandName: String = "ChampOnCall",
     val tagline: String = "When you can't be there, we can.",
     val city: String = "Gurugram",
-    val supportPhone: String = "+911244000000",
-    val supportPhoneDisplay: String = "+91 124 400 0000",
+    val supportPhone: String = "+919205640777",
+    val supportPhoneDisplay: String = "+91 92056 40777",
     val whatsappNumber: String = "919205640777",
     val whatsappPrefill: String = "Hi, I need a companion for my parent's hospital visit.",
     val supportEmail: String = "care@champoncall.com",
@@ -140,6 +140,20 @@ data class PayInfo(
     val failureReason: String?,
 )
 
+data class HistoryItem(
+    val number: String,
+    val token: String,
+    val status: String,
+    val statusLabel: String,
+    val service: String,
+    val createdAt: Long,
+    val channel: String?,
+)
+
+data class HistoryResult(val phone: String, val token: String?, val items: List<HistoryItem>)
+
+data class CodeResult(val demoCode: String?, val channel: String?)
+
 data class BookResult(val number: String, val token: String, val humanReview: Boolean)
 
 /** Converts server JSON into the models above. Pure Kotlin, so it is unit tested on the JVM. */
@@ -252,6 +266,24 @@ object Parse {
             ambulanceNumber = e?.str("ambulance") ?: "108",
         )
     }
+
+    fun history(o: JsonObject): HistoryResult = HistoryResult(
+        phone = o.str("phone") ?: "",
+        token = o.str("token"),
+        items = o.arr("requests").mapNotNull { el ->
+            val r = el.asObj() ?: return@mapNotNull null
+            val link = r.str("track_url")?.let(Links::parseTrack) ?: return@mapNotNull null
+            HistoryItem(
+                number = link.first,
+                token = link.second,
+                status = r.str("status") ?: "NEW",
+                statusLabel = r.str("status_label") ?: r.str("status") ?: "",
+                service = r.str("service_type") ?: "",
+                createdAt = Format.parseIso(r.str("created_at"))?.time ?: 0L,
+                channel = r.str("channel"),
+            )
+        },
+    )
 
     fun pay(o: JsonObject): PayInfo = PayInfo(
         id = o.str("id") ?: "",

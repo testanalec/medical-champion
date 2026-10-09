@@ -104,6 +104,7 @@ fun BookScreen(onBack: () -> Unit, onTrack: (String) -> Unit, onHome: () -> Unit
     val key = remember { UUID.randomUUID().toString() }
     var pickerOpen by remember { mutableStateOf(false) }
     var locating by remember { mutableStateOf(false) }
+    var mapOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { Repo.refreshConfig() }
 
@@ -157,13 +158,30 @@ fun BookScreen(onBack: () -> Unit, onTrack: (String) -> Unit, onHome: () -> Unit
                 Spacer(Modifier.height(6.dp))
                 Text("Request a companion", style = MaterialTheme.typography.headlineLarge, color = Brand.B950)
                 Spacer(Modifier.height(6.dp))
+            }
+
+            // Booking on WhatsApp is just as good: our team takes the details on chat,
+            // and those bookings also appear under "My bookings".
+            AppCard(color = Brand.Emerald50, borderColor = Color(0xFFBBF7D0), modifier = Modifier.testTag("book-whatsapp-card")) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Prefer chatting? ", color = Brand.Slate600, fontSize = 14.sp)
-                    LinkText("WhatsApp", { openWhatsApp(context, config.whatsappNumber, config.whatsappPrefill) })
-                    Text(" or ", color = Brand.Slate600, fontSize = 14.sp)
-                    LinkText("call us", { dial(context, config.supportPhone) })
+                    Ic(R.drawable.fa_whatsapp, tint = Brand.WhatsApp, size = 22.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Prefer to chat? Book on WhatsApp", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Brand.Emerald800)
+                }
+                Text(
+                    "Send us a message and our team will take your booking on chat. WhatsApp bookings also show in “My bookings”.",
+                    fontSize = 13.sp, lineHeight = 19.sp, color = Brand.Emerald800,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppButton(
+                        "Book on WhatsApp",
+                        { openWhatsApp(context, config.whatsappNumber, config.whatsappPrefill + " [ref: android_app]") },
+                        Modifier.weight(1.3f).testTag("book-whatsapp"), BtnKind.WhatsApp, icon = R.drawable.fa_whatsapp,
+                    )
+                    AppButton("Call us", { dial(context, config.supportPhone) }, Modifier.weight(1f), BtnKind.Secondary, icon = R.drawable.fi_phone)
                 }
             }
+            Text("Or fill in the form below:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Brand.Slate600)
 
             AppCard {
                 StepTitle("1. Who needs assistance?")
@@ -195,26 +213,30 @@ fun BookScreen(onBack: () -> Unit, onTrack: (String) -> Unit, onHome: () -> Unit
                         tag = "book-pickup",
                     )
                 }
-                Row(
-                    Modifier.clip(RoundedCornerShape(10.dp)).clickable(enabled = !locating) {
-                        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                        val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                        if (fine || coarse) {
-                            locating = true
-                            currentLocation(context) { loc ->
-                                locating = false
-                                if (loc == null) toast("Could not get your location. Please type the address.")
-                                else f = f.copy(pickupLat = loc.latitude, pickupLng = loc.longitude, pickupInArea = null, pickupText = f.pickupText.ifBlank { "Current location (pinned)" })
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppButton(
+                        if (locating) "Finding…" else "Current location",
+                        {
+                            val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            if (fine || coarse) {
+                                locating = true
+                                currentLocation(context) { loc ->
+                                    locating = false
+                                    if (loc == null) toast("Could not get your location. Please type the address or pick it on the map.")
+                                    else f = f.copy(pickupLat = loc.latitude, pickupLng = loc.longitude, pickupInArea = null, pickupText = f.pickupText.ifBlank { "Current location (pinned)" })
+                                }
+                            } else {
+                                locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                             }
-                        } else {
-                            locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-                        }
-                    }.padding(horizontal = 6.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Ic(R.drawable.fi_navigation, tint = Brand.Slate600, size = 15.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (locating) "Finding your location…" else "Use current location", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Brand.Slate600)
+                        },
+                        Modifier.weight(1f).testTag("book-current-location"), BtnKind.Secondary, icon = R.drawable.fi_navigation, enabled = !locating,
+                    )
+                    AppButton(
+                        "Pick on map",
+                        { mapOpen = true },
+                        Modifier.weight(1f).testTag("book-map"), BtnKind.Secondary, icon = R.drawable.fi_map_pin,
+                    )
                 }
                 if (f.pickupLat != null) {
                     Text(
@@ -309,6 +331,23 @@ fun BookScreen(onBack: () -> Unit, onTrack: (String) -> Unit, onHome: () -> Unit
 
     if (gate && done == null) {
         EmergencyGate(config, onDismiss = { gate = false }, onContinue = { gate = false })
+    }
+    if (mapOpen) {
+        MapPicker(
+            startLat = f.pickupLat,
+            startLng = f.pickupLng,
+            onDismiss = { mapOpen = false },
+            onPicked = { lat, lng, address ->
+                mapOpen = false
+                val typed = f.pickupText.trim()
+                val text = when {
+                    address != null && (typed.isBlank() || typed.startsWith("Current location") || typed.startsWith("Pinned on map")) -> address
+                    typed.isNotBlank() -> typed
+                    else -> String.format(java.util.Locale.US, "Pinned on map (%.5f, %.5f)", lat, lng)
+                }
+                f = f.copy(pickupLat = lat, pickupLng = lng, pickupInArea = null, pickupText = text)
+            },
+        )
     }
     if (pickerOpen) {
         DateTimePicker(

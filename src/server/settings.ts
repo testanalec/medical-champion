@@ -17,8 +17,8 @@ export const DEFAULT_SETTINGS: Record<string, any> = {
     city: 'Gurugram',
   },
   contact: {
-    support_phone: '+911244000000',
-    support_phone_display: '+91 124 400 0000',
+    support_phone: '+919205640777',
+    support_phone_display: '+91 92056 40777',
     whatsapp_number: '919205640777',
     whatsapp_prefill: "Hi, I need a companion for my parent's hospital visit.",
     support_email: 'care@champoncall.com',
@@ -96,17 +96,26 @@ export const DEFAULT_SETTINGS: Record<string, any> = {
   },
 };
 
+// The original placeholder help line was replaced by the real support number (Oct 2026).
+const OLD_SUPPORT_PHONES = ['+911244000000', '+91 124 400 0000'];
+function migrate(key: string, value: any) {
+  if (key === 'contact' && value && OLD_SUPPORT_PHONES.includes(value.support_phone)) {
+    return { ...value, support_phone: DEFAULT_SETTINGS.contact.support_phone, support_phone_display: DEFAULT_SETTINGS.contact.support_phone_display };
+  }
+  return value;
+}
+
 export async function getSetting(key: string): Promise<any> {
   const rows = await sql`SELECT value FROM settings WHERE key = ${key}`;
   const def = DEFAULT_SETTINGS[key] ?? {};
-  return rows[0] ? { ...def, ...rows[0].value } : def;
+  return rows[0] ? migrate(key, { ...def, ...rows[0].value }) : def;
 }
 
 export async function getAllSettings() {
   const rows = await sql`SELECT key, value FROM settings`;
   const out: Record<string, any> = {};
   for (const k of Object.keys(DEFAULT_SETTINGS)) out[k] = { ...DEFAULT_SETTINGS[k] };
-  for (const r of rows) out[r.key] = { ...(DEFAULT_SETTINGS[r.key] ?? {}), ...r.value };
+  for (const r of rows) out[r.key] = migrate(r.key, { ...(DEFAULT_SETTINGS[r.key] ?? {}), ...r.value });
   return out;
 }
 

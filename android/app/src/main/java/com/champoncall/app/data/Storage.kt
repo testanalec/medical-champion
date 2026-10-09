@@ -16,6 +16,7 @@ data class SavedBooking(
     val createdAt: Long,
     val lastStatus: String? = null,
     val lastLabel: String? = null,
+    val channel: String? = null,
 )
 
 private fun prefs(context: Context): SharedPreferences =
@@ -32,7 +33,7 @@ object Bookings {
             val o = el as? JsonObject ?: return@mapNotNull null
             val number = o.str("number") ?: return@mapNotNull null
             val token = o.str("token") ?: return@mapNotNull null
-            SavedBooking(number, token, o.str("service") ?: "", o.str("createdAt")?.toLongOrNull() ?: 0L, o.str("lastStatus"), o.str("lastLabel"))
+            SavedBooking(number, token, o.str("service") ?: "", o.str("createdAt")?.toLongOrNull() ?: 0L, o.str("lastStatus"), o.str("lastLabel"), o.str("channel"))
         }.sortedByDescending { it.createdAt }
     }
 
@@ -42,7 +43,8 @@ object Bookings {
     fun save(context: Context, booking: SavedBooking) {
         val existing = find(context, booking.number)
         val merged = if (existing == null) booking else booking.copy(
-            createdAt = existing.createdAt,
+            createdAt = if (booking.createdAt > 0 && existing.createdAt == 0L) booking.createdAt else existing.createdAt,
+            channel = booking.channel ?: existing.channel,
             service = booking.service.ifBlank { existing.service },
             lastStatus = booking.lastStatus ?: existing.lastStatus,
             lastLabel = booking.lastLabel ?: existing.lastLabel,
@@ -70,6 +72,7 @@ object Bookings {
                     put("createdAt", b.createdAt.toString())
                     put("lastStatus", b.lastStatus)
                     put("lastLabel", b.lastLabel)
+                    put("channel", b.channel)
                 })
             }
         }
@@ -94,6 +97,23 @@ data class Profile(val name: String = "", val phone: String = "", val email: Str
         }
 
         fun clear(context: Context) = save(context, Profile())
+    }
+}
+
+/** Proof (from the server) that this phone verified its mobile number, used to load the full booking history. */
+data class HistoryAuth(val token: String, val phone: String) {
+    companion object {
+        fun load(context: Context): HistoryAuth? {
+            val p = prefs(context)
+            val t = p.getString("history_token", null) ?: return null
+            return HistoryAuth(t, p.getString("history_phone", "") ?: "")
+        }
+
+        fun save(context: Context, auth: HistoryAuth) {
+            prefs(context).edit().putString("history_token", auth.token).putString("history_phone", auth.phone).apply()
+        }
+
+        fun clear(context: Context) = prefs(context).edit().remove("history_token").remove("history_phone").apply()
     }
 }
 

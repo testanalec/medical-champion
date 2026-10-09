@@ -161,6 +161,24 @@ class ParseTest {
         assertTrue(t.payment!!.isPaid)
     }
 
+    @Test fun historyListsEveryChannel() {
+        val h = Parse.history(obj(Fixtures.history()))
+        assertEquals("hist_tok_1", h.token)
+        assertEquals("+919871510465", h.phone)
+        assertEquals(2, h.items.size)
+        assertEquals("MC-61001", h.items[0].number)
+        assertEquals(Fixtures.TOKEN, h.items[0].token)
+        assertEquals("whatsapp", h.items[0].channel)
+        assertEquals("Completed", h.items[1].statusLabel)
+        assertTrue(h.items[0].createdAt > h.items[1].createdAt)
+        assertNull(Parse.history(obj(Fixtures.history(token = null))).token)
+    }
+
+    @Test fun supportNumberDefault() {
+        assertEquals("+919205640777", com.champoncall.app.data.AppConfig().supportPhone)
+        assertEquals("+919205640777", Parse.config(obj(Fixtures.CONFIG)).supportPhone)
+    }
+
     @Test fun pay() {
         val p = Parse.pay(obj(Fixtures.pay()))
         assertEquals("PENDING", p.status)

@@ -27,6 +27,8 @@ class StatusWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 
     companion object {
         suspend fun checkAll(context: Context) {
+            // Picks up bookings made on WhatsApp / website for a verified number
+            runCatching { Repo.syncHistory(context) }
             Bookings.all(context).filter { !Stages.isFinal(it.lastStatus) }.forEach { b ->
                 val t = runCatching { Repo.track(b.number, b.token) }.getOrNull() ?: return@forEach
                 val changed = b.lastStatus != null && b.lastStatus != t.status

@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +52,7 @@ import com.champoncall.app.R
 import com.champoncall.app.data.ApiException
 import com.champoncall.app.data.Bookings
 import com.champoncall.app.data.Format
+import com.champoncall.app.data.HistoryAuth
 import com.champoncall.app.data.Profile
 import com.champoncall.app.data.Repo
 import com.champoncall.app.data.SavedBooking
@@ -63,14 +65,21 @@ import kotlinx.coroutines.launch
 
 /** "My bookings" tab: every request made or found on this phone, with live status. */
 @Composable
-fun BookingsScreen(onTrack: (String) -> Unit, onBook: () -> Unit, onFind: () -> Unit) {
+fun BookingsScreen(onTrack: (String) -> Unit, onBook: () -> Unit, onFind: () -> Unit, onVerify: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var list by remember { mutableStateOf(Bookings.all(context)) }
+    var auth by remember { mutableStateOf(HistoryAuth.load(context)) }
     var refreshing by remember { mutableStateOf(false) }
     var tick by remember { mutableIntStateOf(0) }
 
     suspend fun refreshAll() {
+        // Verified number: pull every booking made with it (app, website, WhatsApp, phone)
+        if (auth != null) {
+            Repo.syncHistory(context)
+            auth = HistoryAuth.load(context)
+            list = Bookings.all(context)
+        }
         coroutineScope {
             Bookings.all(context).map { b ->
                 async {
@@ -95,6 +104,11 @@ fun BookingsScreen(onTrack: (String) -> Unit, onBook: () -> Unit, onFind: () -> 
                 }
             }
         }
+        HistoryBanner(auth, onVerify) {
+            auth?.let { a -> scope.launch { Repo.historyLogout(a.token) } }
+            HistoryAuth.clear(context)
+            auth = null
+        }
         PullToRefreshBox(
             isRefreshing = refreshing,
             onRefresh = {
@@ -115,7 +129,7 @@ fun BookingsScreen(onTrack: (String) -> Unit, onBook: () -> Unit, onFind: () -> 
                     }
                     Text("No bookings yet", style = MaterialTheme.typography.headlineSmall, color = Brand.B950)
                     Text(
-                        "When you book a Champ, you can follow every step here. Booked on the website or WhatsApp? Find it with your request ID.",
+                        "When you book a Champ, you can follow every step here. Booked on WhatsApp or the website? Verify your mobile number above to see those bookings too.",
                         textAlign = TextAlign.Center, color = Brand.Slate600, fontSize = 15.sp, lineHeight = 22.sp,
                     )
                     Spacer(Modifier.height(6.dp))
@@ -163,7 +177,14 @@ private fun BookingRow(b: SavedBooking, onTrack: (String) -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(b.number, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 if (b.service.isNotBlank()) Text(b.service, fontSize = 13.sp, color = Brand.Slate600)
-                if (b.createdAt > 0) Text("Saved ${Format.dateTime(b.createdAt)}", fontSize = 12.sp, color = Brand.Slate400)
+                val via = when (b.channel?.lowercase()) {
+                    "whatsapp" -> "WhatsApp"
+                    "web" -> "Website"
+                    "app", "android" -> "App"
+                    "phone", "ops" -> "Phone"
+                    else -> null
+                }
+                if (b.createdAt > 0) Text(listOfNotNull(Format.dateTime(b.createdAt), via?.let { "via $it" }).joinToString(" · "), fontSize = 12.sp, color = Brand.Slate400)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Pill(
@@ -228,6 +249,130 @@ fun FindScreen(onBack: () -> Unit, onFound: (String) -> Unit) {
                     },
                     Modifier.fillMaxWidth().testTag("find-submit"), BtnKind.Primary, loading = busy, large = true,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryBanner(auth: HistoryAuth?, onVerify: () -> Unit, onSignOut: () -> Unit) {
+    if (auth == null) {
+        Surface(
+            onClick = onVerify,
+            color = Brand.B900,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp).testTag("bookings-verify"),
+        ) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(38.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                    Ic(R.drawable.fi_smartphone, tint = Brand.Gold400, size = 18.dp)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("See all your bookings", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("Including WhatsApp, website and phone bookings. Verify your mobile number.", color = Brand.B200, fontSize = 12.sp, lineHeight = 16.sp)
+                }
+                Ic(R.drawable.fi_chevron_right, tint = Color.White, size = 20.dp)
+            }
+        }
+    } else {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp).testTag("bookings-verified"),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Ic(R.drawable.fi_check_circle, tint = Brand.Emerald600, size = 15.dp)
+            Spacer(Modifier.width(6.dp))
+            Text("All bookings for ${formatPhone(auth.phone)}", fontSize = 13.sp, color = Brand.Slate600, modifier = Modifier.weight(1f))
+            LinkText("Sign out", onSignOut, color = Brand.Slate500)
+        }
+    }
+}
+
+fun formatPhone(p: String): String {
+    val d = p.filter { it.isDigit() }
+    return if (d.length == 12 && d.startsWith("91")) "+91 ${d.substring(2, 7)} ${d.substring(7)}" else p
+}
+
+/** Verify the customer's mobile number with a code on WhatsApp, then load all their bookings. */
+@Composable
+fun VerifyScreen(onBack: () -> Unit, onDone: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val toast = LocalToast.current
+    val config by Repo.config.collectAsState()
+    var phone by remember { mutableStateOf(Profile.load(context).phone) }
+    var code by remember { mutableStateOf("") }
+    var sent by remember { mutableStateOf(false) }
+    var demoCode by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+
+    fun send() {
+        if (Format.digits(phone).length < 10) { toast("Please enter your 10-digit mobile number"); return }
+        busy = true
+        scope.launch {
+            try {
+                val r = Repo.historyCode(phone)
+                demoCode = r.demoCode
+                sent = true
+                toast(if (r.demoCode != null) "Test mode: code shown on screen" else "Code sent to your WhatsApp")
+            } catch (e: ApiException) {
+                toast(e.message ?: "Could not send the code")
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    Column(Modifier.fillMaxSize().background(Brand.Warm50)) {
+        TopBar("Your bookings", onBack)
+        Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            AppCard(padding = 22.dp) {
+                Ic(R.drawable.fi_smartphone, tint = Brand.B600, size = 28.dp)
+                Text("Verify your mobile number", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "We’ll send a 6-digit code to your WhatsApp. Then you’ll see every booking made with this number — in the app, on WhatsApp, on the website or by phone.",
+                    fontSize = 14.sp, color = Brand.Slate500, lineHeight = 20.sp,
+                )
+                Field("Mobile number") {
+                    AppTextField(phone, { phone = it.take(16); sent = false; code = "" }, placeholder = "98765 43210", keyboardType = KeyboardType.Phone, tag = "verify-phone")
+                }
+                if (!sent) {
+                    AppButton("Send code on WhatsApp", { send() }, Modifier.fillMaxWidth().testTag("verify-send"), BtnKind.WhatsApp, icon = R.drawable.fa_whatsapp, loading = busy, large = true)
+                    Text("Not getting the code? Send “Hi” to us on WhatsApp first, then try again.", fontSize = 12.sp, color = Brand.Slate500)
+                    LinkText("Open WhatsApp", { openWhatsApp(context, config.whatsappNumber, "Hi") })
+                } else {
+                    demoCode?.let { Notice("Test mode — your code is $it", icon = R.drawable.fi_info, modifier = Modifier.testTag("verify-demo-code")) }
+                    Field("6-digit code") {
+                        AppTextField(code, { v -> code = v.filter { it.isDigit() }.take(6) }, placeholder = "123456", keyboardType = KeyboardType.NumberPassword, tag = "verify-code")
+                    }
+                    AppButton(
+                        "Verify and show my bookings",
+                        {
+                            if (code.length != 6) toast("Please enter the 6-digit code")
+                            else {
+                                busy = true
+                                scope.launch {
+                                    try {
+                                        val r = Repo.historyVerify(phone, code)
+                                        HistoryAuth.save(context, HistoryAuth(r.token ?: "", r.phone))
+                                        Repo.saveHistory(context, r.items)
+                                        val p = Profile.load(context)
+                                        if (p.phone.isBlank()) Profile.save(context, p.copy(phone = phone.trim()))
+                                        r.items.forEach { Push.register(SavedBooking(it.number, it.token, it.service, it.createdAt)) }
+                                        toast(if (r.items.isEmpty()) "Verified. No bookings found for this number yet." else "Found ${r.items.size} booking${if (r.items.size == 1) "" else "s"}")
+                                        onDone()
+                                    } catch (e: ApiException) {
+                                        toast(e.message ?: "Could not verify")
+                                    } finally {
+                                        busy = false
+                                    }
+                                }
+                            }
+                        },
+                        Modifier.fillMaxWidth().testTag("verify-submit"), BtnKind.Primary, loading = busy, large = true,
+                    )
+                    LinkText("Resend code", { send() })
+                }
             }
         }
     }

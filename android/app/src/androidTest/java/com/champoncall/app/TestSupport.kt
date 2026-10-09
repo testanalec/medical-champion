@@ -61,6 +61,14 @@ class FakeServer : Dispatcher() {
                 track[number] = Fixtures.trackNew(number)
                 ok(bookReply)
             }
+            path == "/api/v1/public/history/code" -> ok(Fixtures.HISTORY_CODE)
+            path == "/api/v1/public/history/verify" -> if (body.contains("\"123456\"")) {
+                track["MC-61001"] = Fixtures.trackEnRoute("MC-61001")
+                track["MC-61002"] = Fixtures.trackCompleted("MC-61002", paid = true, rated = true)
+                ok(Fixtures.history())
+            } else err(400, "Incorrect OTP")
+            path == "/api/v1/public/history" -> ok(Fixtures.history(token = null))
+            path == "/api/v1/public/history/logout" -> ok("""{"ok": true}""")
             path == "/api/v1/public/track-lookup" -> lookupNumber?.let { n ->
                 track.putIfAbsent(n, Fixtures.trackNew(n))
                 ok(Fixtures.lookup(n))

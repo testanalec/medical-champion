@@ -14,6 +14,7 @@ import { tick } from '../sla';
 import { STATUS_LABEL, patientRef } from '../../shared/constants';
 import { DEMO_USERS } from '../seed';
 import { registerPushToken } from '../push';
+import { sendHistoryCode, verifyHistoryCode, phoneForToken, historyFor, revokeToken } from '../history';
 
 export function registerPublic(r: Router) {
   r.get('/api/v1/health', async () => {
@@ -148,6 +149,30 @@ export function registerPublic(r: Router) {
                                  WHERE r.request_number = ${rn} AND c.phone = ${phone}`)[0] : null;
     if (!r) throw notFound('No request found for that ID and mobile number');
     return { track_url: `/track/${r.request_number}?t=${r.tracking_token}` };
+  });
+
+  // Customer app: booking history for a verified mobile number (all channels: app, website, WhatsApp, phone)
+  r.post('/api/v1/public/history/code', async (ctx) => {
+    await rateLimit(`hist-otp:${ctx.ip}`, 10, 900);
+    const phone = normalizePhone(ctx.body.phone);
+    if (!phone) throw bad('Please enter a valid mobile number');
+    return sendHistoryCode(phone);
+  });
+  r.post('/api/v1/public/history/verify', async (ctx) => {
+    await rateLimit(`hist-verify:${ctx.ip}`, 30, 900);
+    const phone = normalizePhone(ctx.body.phone);
+    if (!phone) throw bad('Please enter a valid mobile number');
+    const token = await verifyHistoryCode(phone, String(ctx.body.code || ''));
+    return { token, phone, requests: await historyFor(phone) };
+  });
+  r.post('/api/v1/public/history', async (ctx) => {
+    await rateLimit(`hist:${ctx.ip}`, 120, 900);
+    const phone = await phoneForToken(String(ctx.body.token || ''));
+    return { phone, requests: await historyFor(phone) };
+  });
+  r.post('/api/v1/public/history/logout', async (ctx) => {
+    await revokeToken(String(ctx.body.token || ''));
+    return { ok: true };
   });
 
   // Customer app: follow a request with push notifications (token protected like tracking)

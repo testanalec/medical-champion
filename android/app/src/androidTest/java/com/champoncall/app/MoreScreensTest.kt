@@ -5,6 +5,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextClearance
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.champoncall.app.data.AppPrefs
 import com.champoncall.app.data.Bookings
@@ -104,5 +105,34 @@ class MoreScreensTest : UiTest() {
         compose.tapNoScroll("onboarding-next")
         compose.waitTag("hero-title")
         assertTrue(AppPrefs.onboarded(context))
+    }
+
+    @Test
+    fun verifiedNumberShowsWhatsAppAndWebsiteBookings() {
+        launch()
+        compose.tapNoScroll("tab-bookings")
+        compose.waitTag("bookings-verify")
+        shot("53_bookings_verify_banner")
+        compose.tapNoScroll("bookings-verify")
+        compose.waitTag("verify-phone")
+        compose.onNodeWithTag("verify-phone").performTextInput("9871510465")
+        compose.tap("verify-send")
+        compose.waitTag("verify-demo-code")
+        compose.onNodeWithTag("verify-code").performTextInput("111111")
+        compose.tap("verify-submit")
+        compose.waitText("Incorrect OTP")
+        compose.waitSnackbarGone()
+        compose.onNodeWithTag("verify-code").performTextClearance()
+        compose.onNodeWithTag("verify-code").performTextInput("123456")
+        shot("54_verify_code")
+        compose.tap("verify-submit")
+        compose.waitTag("bookings-verified")
+        compose.waitTag("booking-MC-61001")
+        compose.waitTag("booking-MC-61002")
+        compose.waitText("via WhatsApp")
+        shot("55_bookings_all_channels")
+        assertNotNull(com.champoncall.app.data.HistoryAuth.load(context))
+        compose.tapNoScroll("booking-MC-61001")
+        compose.waitText("Companion on the way")
     }
 }

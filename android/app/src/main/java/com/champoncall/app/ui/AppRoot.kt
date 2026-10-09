@@ -3,6 +3,10 @@ package com.champoncall.app.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -125,7 +129,9 @@ fun AppRoot(start: Destination? = null, nav: NavHostController = rememberNavCont
             },
             containerColor = Brand.Warm50,
         ) { padding ->
-            Box(Modifier.fillMaxSize().padding(padding)) {
+            // On tablets and in landscape the app keeps a comfortable phone-like width, centred
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+              Box(Modifier.fillMaxHeight().widthIn(max = 640.dp).fillMaxWidth()) {
                 NavHost(nav, startDestination = startRoute) {
                     composable("onboarding") {
                         OnboardingScreen {
@@ -155,6 +161,13 @@ fun AppRoot(start: Destination? = null, nav: NavHostController = rememberNavCont
                             onTrack = { nav.navigate("track/$it") },
                             onBook = { nav.navigate("book") },
                             onFind = { nav.navigate("find") },
+                            onVerify = { nav.navigate("verify") },
+                        )
+                    }
+                    composable("verify") {
+                        VerifyScreen(
+                            onBack = { nav.popBackStack() },
+                            onDone = { onMain { nav.popBackStack() } },
                         )
                     }
                     composable("help") {
@@ -191,11 +204,11 @@ fun AppRoot(start: Destination? = null, nav: NavHostController = rememberNavCont
                         DocScreen(e.arguments?.getString("id").orEmpty(), onBack = { nav.popBackStack() })
                     }
                 }
+              }
             }
         }
     }
 }
-
 
 private val mainHandler = Handler(Looper.getMainLooper())
 
