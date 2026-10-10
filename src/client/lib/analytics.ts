@@ -14,7 +14,9 @@ export function initAnalytics(id: string | null | undefined) {
   window.gtag = function gtag() { window.dataLayer!.push(arguments); };
   window.gtag('js', new Date());
   // Page views are sent by us on every in-app navigation (single-page site)
-  window.gtag('config', id, { send_page_view: false, anonymize_ip: true });
+  // Every hit carries the page address; strip the query string (tracking tokens) from all of them
+  window.gtag('set', { page_location: location.origin + location.pathname });
+  window.gtag('config', id, { send_page_view: false, anonymize_ip: true, page_location: location.origin + location.pathname });
   const s = document.createElement('script');
   s.async = true;
   s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
@@ -27,6 +29,7 @@ export function initAnalytics(id: string | null | undefined) {
 function pageView() {
   if (!window.gtag || isInternal()) return;
   // Tracking tokens in URLs are private: send the path only, never the query string
+  window.gtag('set', { page_location: location.origin + location.pathname });
   window.gtag('event', 'page_view', { page_path: location.pathname, page_location: location.origin + location.pathname, page_title: document.title });
 }
 
