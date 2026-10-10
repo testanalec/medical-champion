@@ -4,6 +4,7 @@ import { FiPhone, FiMenu, FiX, FiAlertTriangle, FiArrowRight } from 'react-icons
 import { Link, navigate } from '../lib/router';
 import { useConfig, whatsappHref, telHref } from '../lib/config';
 import { Logo, Modal, cx } from './ui';
+import { track } from '../lib/analytics';
 
 /** FR-EMR-001: emergency warning shown before booking starts. */
 export function EmergencyGate({ open, onClose, onContinue }: { open: boolean; onClose: () => void; onContinue: () => void }) {
@@ -16,7 +17,7 @@ export function EmergencyGate({ open, onClose, onContinue }: { open: boolean; on
       </p>
       <p className="mt-3 text-sm text-slate-500">Our companions are not doctors, nurses, paramedics or an ambulance service.</p>
       <div className="mt-5 grid gap-3">
-        <a href={`tel:${c?.emergency.primary_number || '112'}`} className="btn btn-danger btn-lg w-full">
+        <a href={`tel:${c?.emergency.primary_number || '112'}`} onClick={() => track('emergency_call_click')} className="btn btn-danger btn-lg w-full">
           <FiPhone /> CALL EMERGENCY SERVICE ({c?.emergency.primary_number || '112'})
         </a>
         <a href={`tel:${c?.emergency.ambulance_number || '108'}`} className="btn btn-secondary w-full text-red-700">
@@ -36,6 +37,7 @@ export function useHelpNow() {
   const href = whatsappHref(c);
   const go = () => {
     setOpen(false);
+    track('whatsapp_click', { page: location.pathname });
     if (href.startsWith('http')) window.open(href, '_blank', 'noopener');
     else navigate(href);
   };
@@ -58,7 +60,7 @@ export function WhatsAppCTA({ className, label = 'GET HELP NOW ON WHATSAPP', siz
 export function CallCTA({ className, size = 'lg', label = 'CALL US' }: { className?: string; size?: 'lg' | 'md' | 'sm'; label?: string }) {
   const c = useConfig();
   return (
-    <a href={telHref(c)} className={cx('btn btn-secondary', size === 'lg' && 'btn-lg', size === 'sm' && 'btn-sm', className)}>
+    <a href={telHref(c)} onClick={() => track('call_click', { page: location.pathname })} className={cx('btn btn-secondary', size === 'lg' && 'btn-lg', size === 'sm' && 'btn-sm', className)}>
       <FiPhone /> {label}
     </a>
   );
@@ -139,7 +141,7 @@ export function PublicFooter() {
             <li><Link className="hover:text-white" to="/terms">Terms of service</Link></li>
             <li><Link className="hover:text-white" to="/companion">Companion app</Link></li>
             <li><Link className="hover:text-white" to="/ops">Operations login</Link></li>
-            <li><Link className="hover:text-white" to="/demo">Demo guide</Link></li>
+            {c?.demo_mode && <li><Link className="hover:text-white" to="/demo">Demo guide</Link></li>}
           </ul>
         </div>
       </div>

@@ -90,6 +90,9 @@ export const DEFAULT_SETTINGS: Record<string, any> = {
     companion_base: 650,
     companion_per_extra_hour: 150,
   },
+  analytics: {
+    ga_measurement_id: '',
+  },
   email: {
     ops_emails: '',
     customer_updates: true,

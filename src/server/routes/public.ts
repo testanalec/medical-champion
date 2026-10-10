@@ -32,6 +32,7 @@ export function registerPublic(r: Router) {
       brand: s.brand, contact: s.contact, emergency: s.emergency, service_types: SERVICE_TYPES,
       pricing: rules, service_areas: areas, verification_claims: s.verification.public_claims,
       lists: { languages: s.lists.languages }, demo_mode: !!s.security.demo_mode,
+      analytics: { ga_id: (String(s.analytics?.ga_measurement_id || process.env.GA_MEASUREMENT_ID || '').trim().match(/^G-[A-Z0-9]+$/i) || [null])[0] },
       // Demo sign-in shortcuts are only published while demo mode is on
       demo_accounts: s.security.demo_mode ? DEMO_USERS.map((u) => [u.email.split('@')[0].replace(/^./, (c) => c.toUpperCase()), u.email, u.password]) : [],
       integrations: integrationStatus(),

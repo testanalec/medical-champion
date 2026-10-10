@@ -34,6 +34,7 @@ export function Settings() {
           <KeyForm k="emergency" title="Emergency contacts" value={s.emergency} onSaved={reload} fields={[['primary_number', 'Primary emergency number'], ['primary_label', 'Label'], ['ambulance_number', 'Ambulance number'], ['ambulance_label', 'Label']]}
             extra={<p className="flex gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900"><FiAlertTriangle className="mt-0.5 shrink-0" />Emergency contact details must be legally and operationally validated before production.</p>} bools={[['validated_for_production', 'Validated for production']]} />
           <KeyForm k="brand" title="Brand" value={s.brand} onSaved={reload} fields={[['name', 'Name'], ['tagline', 'Tagline'], ['city', 'Launch city']]} />
+          <KeyForm k="analytics" title="Google Analytics" value={s.analytics} onSaved={reload} fields={[['ga_measurement_id', 'GA4 Measurement ID (looks like G-XXXXXXXXXX)']]} note="Tracks visits, WhatsApp/call clicks and website bookings on the public site. Never loaded on Ops or the Companion app." />
           <KeyForm k="email" title="Email notifications" value={s.email} onSaved={reload}
             fields={[['ops_emails', 'Operations email(s) — new requests & alerts go here (comma separated)']]}
             bools={[['customer_updates', 'Email customers every status update (when they gave an email)'], ['ops_updates', 'Email operations alerts (new request, accepted, arrived, completed, escalations…)'], ['companion_updates', 'Email companions their job offers and updates']]}

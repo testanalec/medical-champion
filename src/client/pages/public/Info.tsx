@@ -44,6 +44,8 @@ export function Privacy() {
       </ul>
       <h2>Retention</h2>
       <p>Each category of data has its own retention period (for example WhatsApp messages and location data are kept for a shorter time than payment records required by law). Data is securely deleted at the end of its period.</p>
+      <h2>Website analytics</h2>
+      <p>We use Google Analytics to understand how visitors use this website (for example which pages are viewed and whether a booking was made), so we can improve it. It uses cookies and does not receive your booking details, tracking links or medical information.</p>
       <h2>Your choices</h2>
       <p>You can ask to access, correct or delete your information by writing to {c?.contact.support_email}.</p>
     </Doc>
@@ -93,6 +95,9 @@ export function Safety() {
 }
 
 export function DemoGuide() {
+  const cfg = useConfig();
+  // The demo guide (with demo logins) is only published while demo mode is on
+  if (!cfg?.demo_mode) return <NotFound />;
   const cards = [
     { icon: <FiGlobe />, title: 'Customer website', to: '/', desc: 'Landing page, emergency gate, WhatsApp & call CTAs, services, pricing, online booking, tracking.' },
     { icon: <FiMessageCircle />, title: 'WhatsApp booking', to: '/whatsapp', desc: 'Full conversational booking on the real webhook engine; status updates arrive in the chat.' },

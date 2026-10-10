@@ -34,8 +34,12 @@ function ensureTable() {
 /** Sends a login code. Returns demo_code only while the platform is in demo mode. */
 export async function sendHistoryCode(phone: string) {
   const { code, ttl } = await issueOtp(phone, PURPOSE);
-  const demo = (await getSetting('security')).demo_mode;
-  if (demo || !waConfigured()) return { sent: true, ttl, demo_code: demo ? code : null, channel: demo ? 'demo' : 'none' };
+  // Customer booking history is private: once real WhatsApp is connected the code is ONLY sent on WhatsApp,
+  // never shown on screen (even while demo mode is on for the staff/companion demo logins).
+  if (!waConfigured()) {
+    const demo = (await getSetting('security')).demo_mode;
+    return { sent: true, ttl, demo_code: demo ? code : null, channel: demo ? 'demo' : 'none' };
+  }
   try {
     await sendAuthCode(phone, code);
     return { sent: true, ttl, demo_code: null, channel: 'whatsapp' };

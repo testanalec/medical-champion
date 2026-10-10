@@ -6,6 +6,7 @@ import { useConfig, getUtm } from '../../lib/config';
 import { Link } from '../../lib/router';
 import { Button, Field, Input, Textarea, cx, useToast, fromLocalInput, toLocalInput } from '../../components/ui';
 import { fmtINR, RELATIONSHIPS } from '../../../shared/constants';
+import { track } from '../../lib/analytics';
 
 export function Chips<T extends string>({ value, onChange, options, testid }: { value: T | ''; onChange: (v: T) => void; options: [T, string][]; testid?: string }) {
   return (
@@ -73,6 +74,7 @@ export default function Book() {
         requested_at: f.urgency === 'SCHEDULED' ? fromLocalInput(f.requested_at) : null, utm: getUtm(), idempotency_key: key,
       });
       setDone(r);
+      track('generate_lead', { service_type: f.service_type, urgency: f.urgency, channel: 'website' });
       window.scrollTo({ top: 0 });
     } catch (er: any) { toast('error', er.message); } finally { setBusy(false); }
   };

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { get } from './api';
+import { initAnalytics } from './analytics';
 
 export interface PublicConfig {
   brand: { name: string; tagline: string; city: string };
@@ -11,6 +12,7 @@ export interface PublicConfig {
   verification_claims: string[];
   lists: { languages: string[] };
   demo_mode: boolean;
+  analytics?: { ga_id: string | null };
   demo_accounts?: [string, string, string][];
   integrations: { whatsapp: boolean; razorpay: boolean; sms: boolean };
 }
@@ -19,7 +21,7 @@ const Ctx = createContext<{ config: PublicConfig | null; reload: () => void }>({
 
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<PublicConfig | null>(null);
-  const load = () => get<PublicConfig>('/api/v1/public/config').then(setConfig).catch(() => setTimeout(load, 3000));
+  const load = () => get<PublicConfig>('/api/v1/public/config').then((c) => { setConfig(c); initAnalytics(c.analytics?.ga_id); }).catch(() => setTimeout(load, 3000));
   useEffect(() => { load(); }, []);
   return <Ctx.Provider value={{ config, reload: load }}>{children}</Ctx.Provider>;
 }
