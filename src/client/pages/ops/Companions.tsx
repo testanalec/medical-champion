@@ -129,6 +129,8 @@ export function CompanionDetail({ id }: { id: string }) {
         <Stat label="Incidents" value={c.stats.incidents ?? 0} tone={c.stats.incidents ? 'warn' : undefined} />
       </div>
 
+      {can('companion.manage') && <PasswordCard c={c} onDone={reload} />}
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Section title="Verification controls" action={c.verification_complete ? <Badge tone="green">Complete</Badge> : <Badge tone="amber">Incomplete</Badge>}>
           <p className="mb-3 text-xs text-slate-500">Each control is recorded individually. A companion can only be activated when all controls required by the business are complete. Changes are audited.</p>
@@ -167,6 +169,36 @@ export function CompanionDetail({ id }: { id: string }) {
       </div>
       {edit && <CompanionForm c={c} onClose={() => setEdit(false)} onDone={() => { setEdit(false); reload(); }} />}
       {bank && <BankModal c={c} onClose={() => setBank(false)} onDone={() => { setBank(false); reload(); }} />}
+    </div>
+  );
+}
+
+function PasswordCard({ c, onDone }: { c: any; onDone: () => void }) {
+  const [pw, setPw] = useState('');
+  const [shown, setShown] = useState<string | null>(null);
+  const { busy, run } = useAction();
+  const save = async (body: any) => {
+    const r = await run(body.generate ? 'gen' : 'set', () => post(`/api/v1/companions/${c.id}/password`, body), 'Password saved');
+    if (r) { setPw(''); setShown(r.password || null); onDone(); }
+  };
+  return (
+    <div className="card mt-4 p-5" data-testid="cmp-password-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 font-bold"><FiLock /> Champ app login</h2>
+        {c.has_password ? <Badge tone="green">Password set</Badge> : <Badge tone="amber">No password yet</Badge>}
+      </div>
+      <p className="mt-1 text-sm text-slate-600">{c.name} signs in at <span className="font-mono">champoncall.com/companion</span> with <strong>{c.phone}</strong> and this password.{c.password_locked ? ' This login is locked for 15 minutes after wrong attempts – setting a new password unlocks it.' : ''}</p>
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <Field label="New password (min 8, letters + a number)" className="min-w-[14rem] flex-1"><Input type="text" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" data-testid="cmp-new-password" /></Field>
+        <Button className="btn-primary" loading={busy === 'set'} disabled={pw.length < 8} onClick={() => save({ password: pw })} data-testid="cmp-set-password">Set password</Button>
+        <Button className="btn-secondary" loading={busy === 'gen'} onClick={() => save({ generate: true })} data-testid="cmp-generate-password">Generate one</Button>
+      </div>
+      {shown && (
+        <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 ring-1 ring-emerald-200">
+          New password: <strong className="font-mono text-base" data-testid="cmp-generated-password">{shown}</strong> — share it with {c.name.split(' ')[0]} now. It won't be shown again.
+          <button className="btn btn-ghost btn-sm ml-2" onClick={() => navigator.clipboard?.writeText(shown)}>Copy</button>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { GAZETTEER } from '../geo';
 import { VERIFICATION_CONTROLS, isUrgent, SERVICE_TYPE_LABEL } from '../../shared/constants';
 import { listMetaTemplates, syncMetaTemplates } from '../wa';
 import { DEMO_USERS } from '../seed';
+import { ensureCompanionPasswordColumns } from './companion';
+import crypto from 'node:crypto';
 
 // Operational tables emptied by the go-live reset. Configuration (settings, roles, users, pricing, service areas,
 // message templates) is kept. status_events / audit_logs are immutable per row; TRUNCATE is the sanctioned wipe.
@@ -181,9 +183,9 @@ export function registerAdmin(r: Router) {
     return rows.map((c: any) => {
       const s: any = stats.get(c.id) || {};
       const job = active.find((a: any) => a.assigned_companion_id === c.id);
-      const { bank_account_number, bank_ifsc, upi_id, bank_account_name, ...safe } = c;
+      const { bank_account_number, bank_ifsc, upi_id, bank_account_name, password_hash, failed_logins, locked_until, ...safe } = c;
       return {
-        ...safe, jobs_completed: s.jobs_completed ?? 0, rating: s.rating, rating_count: s.rating_count ?? 0,
+        ...safe, has_password: !!password_hash, jobs_completed: s.jobs_completed ?? 0, rating: s.rating, rating_count: s.rating_count ?? 0,
         acceptance_rate: s.offers ? s.accepted / s.offers : null, cancellation_rate: s.offers ? s.cancelled / s.offers : null,
         avg_response_sec: s.avg_response_sec, incidents: s.incidents ?? 0, current_job: job ? { request_number: job.request_number, status: job.current_status } : null,
       };
@@ -201,8 +203,9 @@ export function registerAdmin(r: Router) {
     const financial = can(ctx, 'companion.financial.view');
     if (financial) await audit(ctx, 'companion.financial.view', 'companion', c.id, `Viewed bank details of ${c.code}`);
     const mask = (v: string | null) => (v ? '•••• ' + v.slice(-4) : null);
+    const { password_hash, ...cSafe } = c;
     return {
-      ...c,
+      ...cSafe, has_password: !!password_hash, password_locked: !!(c.locked_until && new Date(c.locked_until) > new Date()),
       bank_account_number: financial ? c.bank_account_number : mask(c.bank_account_number), bank_ifsc: financial ? c.bank_ifsc : null,
       upi_id: financial ? c.upi_id : c.upi_id ? '•••@' + c.upi_id.split('@')[1] : null, financial_visible: financial,
       verification_complete: await verificationComplete(c), required_controls: (await getSetting('verification')).required,
@@ -228,6 +231,7 @@ export function registerAdmin(r: Router) {
         c.email = String(b.email).trim();
       }
       await audit(ctx, 'companion.create', 'companion', c.id, `Created ${c.code} ${c.name}`);
+      delete c.password_hash;
       return c;
     } catch (e: any) {
       if (String(e.message).includes('unique')) throw conflict('A companion with this mobile already exists');
@@ -263,9 +267,29 @@ export function registerAdmin(r: Router) {
       if (!b.active) patch.availability = 'OFFLINE';
     }
     const c = (await sql`UPDATE companions SET ${sql(patch)} WHERE id = ${before.id} RETURNING *`)[0];
-    const redact = (x: any) => ({ ...x, bank_account_number: undefined, upi_id: undefined, bank_ifsc: undefined, photo_url: undefined });
+    const redact = (x: any) => ({ ...x, bank_account_number: undefined, upi_id: undefined, bank_ifsc: undefined, photo_url: undefined, password_hash: undefined });
     await audit(ctx, 'companion.edit', 'companion', c.id, `Updated ${c.code}: ${Object.keys(patch).filter((k) => k !== 'updated_at').join(', ')}`, redact(before), redact(c));
+    delete c.password_hash;
     return c;
+  });
+  // Operations sets (or generates) a Champ's app password. A generated password is shown once, never stored in clear.
+  r.post('/api/v1/companions/:id/password', async (ctx) => {
+    requireUser(ctx, 'companion.manage');
+    await ensureCompanionPasswordColumns();
+    const c = (await sql`SELECT id, code, name FROM companions WHERE id = ${ctx.params.id}`)[0];
+    if (!c) throw notFound();
+    let pw = String(ctx.body.password || '');
+    const generated = !!ctx.body.generate;
+    if (generated) {
+      const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+      pw = Array.from(crypto.randomBytes(9), (x) => alphabet[x % alphabet.length]).join('').replace(/(.{3})(?=.)/g, '$1-');
+    } else if (pw.length < 8 || !/[a-z]/i.test(pw) || !/\d/.test(pw)) {
+      throw bad('Password must be at least 8 characters and include letters and a number');
+    }
+    await sql`UPDATE companions SET password_hash = ${hashPassword(pw)}, password_set_at = now(), failed_logins = 0, locked_until = NULL WHERE id = ${c.id}`;
+    await sql`DELETE FROM sessions WHERE subject_type = 'companion' AND subject_id = ${c.id}`.catch(() => {});
+    await audit(ctx, 'companion.password_set', 'companion', c.id, `${generated ? 'Generated' : 'Set'} app password for ${c.code} ${c.name}`);
+    return { ok: true, ...(generated ? { password: pw } : {}) };
   });
   r.patch('/api/v1/companions/:id/verification', async (ctx) => {
     requireUser(ctx, 'companion.verify');

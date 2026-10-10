@@ -112,11 +112,20 @@ export default function CompanionApp() {
 
 function Login({ onDone }: { onDone: () => void }) {
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [code, setCode] = useState('');
+  const [mode, setMode] = useState<'password' | 'otp'>('password');
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [demo, setDemo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
+  const signIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try { await post('/api/v1/companion/auth/password', { phone, password }); navigate('/companion', true); onDone(); }
+    catch (er: any) { toast('error', er.message); } finally { setBusy(false); }
+  };
   const send = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setBusy(true);
@@ -132,13 +141,25 @@ function Login({ onDone }: { onDone: () => void }) {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-gradient-to-b from-brand-800 to-brand-950 px-6 pt-16 text-white">
       <Logo light />
-      <h1 className="mt-12 font-display text-3xl font-semibold">Companion app</h1>
+      <h1 className="mt-12 font-display text-3xl font-semibold">Champ app</h1>
       <p className="mt-2 text-brand-100">Sign in with your registered mobile number.</p>
       <div className="mt-8 rounded-3xl bg-white p-6 text-ink shadow-lift">
-        {step === 'phone' ? (
+        {mode === 'password' ? (
+          <form onSubmit={signIn}>
+            <Field label="Mobile number"><Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="username" placeholder="98765 43210" autoFocus data-testid="cmp-phone" /></Field>
+            <Field label="Password" className="mt-3">
+              <Input type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" data-testid="cmp-password" />
+              <label className="mt-1.5 flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} /> Show password</label>
+            </Field>
+            <Button className="btn-primary mt-4 w-full py-3" loading={busy} disabled={!phone || !password} data-testid="cmp-signin">Sign in</Button>
+            <p className="mt-3 text-center text-xs text-slate-500">Forgot your password? Call Operations – they can set a new one for you.</p>
+            <button type="button" className="btn btn-ghost mt-1 w-full text-sm" onClick={() => { setMode('otp'); setStep('phone'); }} data-testid="cmp-use-otp">Use a WhatsApp code instead</button>
+          </form>
+        ) : step === 'phone' ? (
           <form onSubmit={send}>
-            <Field label="Mobile number"><Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="70000 00101" autoFocus data-testid="cmp-phone" /></Field>
-            <Button className="btn-primary mt-4 w-full py-3" loading={busy} data-testid="cmp-send-otp">Send OTP</Button>
+            <Field label="Mobile number"><Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="98765 43210" autoFocus data-testid="cmp-phone" /></Field>
+            <Button className="btn-primary mt-4 w-full py-3" loading={busy} data-testid="cmp-send-otp">Send code on WhatsApp</Button>
+            <button type="button" className="btn btn-ghost mt-2 w-full text-sm" onClick={() => setMode('password')}>Sign in with password</button>
           </form>
         ) : (
           <form onSubmit={verify}>
@@ -147,10 +168,11 @@ function Login({ onDone }: { onDone: () => void }) {
             {demo && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-center text-xs text-amber-900">Demo mode – your OTP is <strong className="font-mono text-base" data-testid="cmp-demo-otp">{demo}</strong></p>}
             <Button className="btn-primary mt-4 w-full py-3" loading={busy} data-testid="cmp-verify">Verify & sign in</Button>
             <button type="button" className="btn btn-ghost mt-2 w-full" onClick={() => setStep('phone')}>Change number</button>
+            <button type="button" className="btn btn-ghost w-full text-sm" onClick={() => setMode('password')}>Sign in with password</button>
           </form>
         )}
       </div>
-      <p className="mt-6 text-center text-xs text-brand-200">Demo: use 70000 00101 (Amit Kumar). <Link to="/" className="underline">Website</Link></p>
+      <p className="mt-6 text-center text-xs text-brand-200"><Link to="/" className="underline">Website</Link></p>
     </div>
   );
 }

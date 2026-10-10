@@ -1,6 +1,6 @@
 import { sql } from '../db';
 import { Router, Ctx, bad, notFound, str, num, normalizePhone, rateLimit, HttpError } from '../http';
-import { requireCompanion, requireUser, issueOtp, verifyOtp, createSession, destroySession, audit } from '../auth';
+import { requireCompanion, requireUser, issueOtp, verifyOtp, createSession, destroySession, audit, verifyPassword } from '../auth';
 import { respondToOffer, setAvailability, verificationComplete } from '../dispatch';
 import { recordServiceEvent, completeService } from '../lifecycle';
 import { getSetting, serviceTypeLabel } from '../settings';
@@ -9,6 +9,20 @@ import { withIdempotency, createExpense, createIncident } from './shared';
 import { SERVICE_EVENTS, ACTIVE_SERVICE } from '../../shared/constants';
 import { maybeTick } from '../sla';
 import { waConfigured, sendAuthCode } from '../wa';
+
+// Champs can sign in with mobile + password (set by Operations) as well as a WhatsApp code.
+let pwColumns: Promise<void> | null = null;
+export function ensureCompanionPasswordColumns() {
+  if (!pwColumns) {
+    pwColumns = (async () => {
+      await sql`ALTER TABLE companions ADD COLUMN IF NOT EXISTS password_hash text`;
+      await sql`ALTER TABLE companions ADD COLUMN IF NOT EXISTS password_set_at timestamptz`;
+      await sql`ALTER TABLE companions ADD COLUMN IF NOT EXISTS failed_logins int NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE companions ADD COLUMN IF NOT EXISTS locked_until timestamptz`;
+    })().catch((e) => { pwColumns = null; throw e; });
+  }
+  return pwColumns;
+}
 
 async function jobView(requestId: string, companionId: string, full: boolean) {
   const r = (await sql`
@@ -79,6 +93,25 @@ export function registerCompanion(r: Router) {
       throw new HttpError(502, 'We could not send the code on WhatsApp. Please try again in a minute or contact Operations.', 'otp_delivery_failed');
     }
     return { sent: true, ttl, demo_code: null, message: 'Code sent to your WhatsApp' };
+  });
+  r.post('/api/v1/companion/auth/password', async (ctx) => {
+    await rateLimit(`cpw:${ctx.ip}`, 20, 900);
+    await ensureCompanionPasswordColumns();
+    const phone = normalizePhone(ctx.body.phone);
+    const password = String(ctx.body.password || '');
+    if (!phone || !password) throw bad('Enter your registered mobile number and password');
+    const c = (await sql`SELECT * FROM companions WHERE phone = ${phone}`)[0];
+    if (c?.locked_until && new Date(c.locked_until) > new Date()) throw new HttpError(423, 'Too many wrong attempts. Try again in 15 minutes or call Operations.');
+    if (!c || !c.password_hash || !verifyPassword(password, c.password_hash)) {
+      if (c) await sql`UPDATE companions SET failed_logins = failed_logins + 1, locked_until = CASE WHEN failed_logins + 1 >= 5 THEN now() + interval '15 minutes' ELSE NULL END WHERE id = ${c.id}`;
+      throw new HttpError(401, c && !c.password_hash ? 'No password has been set for this number yet. Please ask Operations.' : 'Incorrect mobile number or password');
+    }
+    if (c.suspended) throw new HttpError(403, 'Account not active. Please contact Operations.');
+    await sql`UPDATE companions SET failed_logins = 0, locked_until = NULL WHERE id = ${c.id}`;
+    await createSession(ctx, 'companion', c.id);
+    ctx.companion = { id: c.id, code: c.code, name: c.name, phone: c.phone };
+    await audit(ctx, 'auth.companion_login', 'companion', c.id, `${c.name} signed in with password`);
+    return { ok: true };
   });
   r.post('/api/v1/companion/auth/verify', async (ctx) => {
     await rateLimit(`otpv:${ctx.ip}`, 30, 900);
