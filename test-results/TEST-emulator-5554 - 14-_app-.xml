@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="com.champoncall.app.BookTest" tests="30" failures="0" errors="0" skipped="0" time="232.616" timestamp="2026-10-10T17:05:25" hostname="localhost">
+  <properties>
+    <property name="device" value="emulator-5554 - 14" />
+    <property name="flavor" value="" />
+    <property name="project" value=":app" />
+  </properties>
+  <testcase name="whatsAppBookingIsOfferedOnTheForm" classname="com.champoncall.app.BookTest" time="11.234" />
+  <testcase name="secondBookingRemembersCustomerDetails" classname="com.champoncall.app.BookTest" time="5.75" />
+  <testcase name="pickupCanBePickedOnTheMap" classname="com.champoncall.app.BookTest" time="16.185" />
+  <testcase name="humanReviewMessageAfterBooking" classname="com.champoncall.app.BookTest" time="9.961" />
+  <testcase name="bedriddenShowsCareTeamNotice" classname="com.champoncall.app.BookTest" time="6.503" />
+  <testcase name="serverErrorsAreShownToTheCustomer" classname="com.champoncall.app.BookTest" time="14.258" />
+  <testcase name="scheduledVisitAsksForDateAndTime" classname="com.champoncall.app.BookTest" time="28.517" />
+  <testcase name="completeBookingFlow" classname="com.champoncall.app.BookTest" time="20.843" />
+  <testcase name="backgroundCheckNotifiesWhenStatusChanges" classname="com.champoncall.app.DeviceTest" time="5.54" />
+  <testcase name="notificationTapOpensTheRequest" classname="com.champoncall.app.DeviceTest" time="1.815" />
+  <testcase name="worksInLandscapeAndOnWideScreens" classname="com.champoncall.app.DeviceTest" time="7.555" />
+  <testcase name="trackingLinkFromWhatsAppOpensTheRequestInTheApp" classname="com.champoncall.app.DeviceTest" time="2.212" />
+  <testcase name="launcherOpensHome" classname="com.champoncall.app.DeviceTest" time="2.974" />
+  <testcase name="bottomTabsWork" classname="com.champoncall.app.HomeTest" time="4.598" />
+  <testcase name="whatsAppButtonAsksAboutEmergencyFirst" classname="com.champoncall.app.HomeTest" time="3.612" />
+  <testcase name="landingPageHasEverySectionOfTheWebsite" classname="com.champoncall.app.HomeTest" time="12.27" />
+  <testcase name="activeRequestIsShownOnTopOfHome" classname="com.champoncall.app.HomeTest" time="2.731" />
+  <testcase name="findABookingMadeOnTheWebsite" classname="com.champoncall.app.MoreScreensTest" time="5.113" />
+  <testcase name="bookingsListGroupsActiveAndPast" classname="com.champoncall.app.MoreScreensTest" time="3.5" />
+  <testcase name="firstLaunchShowsIntroduction" classname="com.champoncall.app.MoreScreensTest" time="4.884" />
+  <testcase name="wrongDetailsShowAClearMessage" classname="com.champoncall.app.MoreScreensTest" time="3.634" />
+  <testcase name="verifiedNumberShowsWhatsAppAndWebsiteBookings" classname="com.champoncall.app.MoreScreensTest" time="14.05" />
+  <testcase name="helpAndPolicyPages" classname="com.champoncall.app.MoreScreensTest" time="6.537" />
+  <testcase name="ratingNeedsStarsAndTrustAnswer" classname="com.champoncall.app.TrackTest" time="9.187" />
+  <testcase name="paymentLinkOpensCheckoutDirectly" classname="com.champoncall.app.TrackTest" time="2.435" />
+  <testcase name="liveTrackingShowsCompanionEtaAndTimeline" classname="com.champoncall.app.TrackTest" time="3.504" />
+  <testcase name="requestNotOnThisPhoneOffersToFindIt" classname="com.champoncall.app.TrackTest" time="2.796" />
+  <testcase name="cancelledRequestExplainsWhatHappened" classname="com.champoncall.app.TrackTest" time="2.237" />
+  <testcase name="completedVisitShowsBillThenPayThenRate" classname="com.champoncall.app.TrackTest" time="11.638" />
+  <testcase name="invalidLinkShowsServerMessage" classname="com.champoncall.app.TrackTest" time="3.001" />
+</testsuite>

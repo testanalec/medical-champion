@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.champoncall.app.FormatTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-10T16:58:33" hostname="runnervmmprz5" time="0.047">
+  <properties/>
+  <testcase name="durations" classname="com.champoncall.app.FormatTest" time="0.016"/>
+  <testcase name="rupeesUseIndianGrouping" classname="com.champoncall.app.FormatTest" time="0.022"/>
+  <testcase name="timesShowInIndianTime" classname="com.champoncall.app.FormatTest" time="0.008"/>
+  <testcase name="isoRoundTrip" classname="com.champoncall.app.FormatTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

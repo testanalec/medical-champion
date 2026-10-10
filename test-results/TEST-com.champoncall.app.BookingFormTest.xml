@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.champoncall.app.BookingFormTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-10T16:58:33" hostname="runnervmmprz5" time="0.113">
+  <properties/>
+  <testcase name="completeFormIsValid" classname="com.champoncall.app.BookingFormTest" time="0.051"/>
+  <testcase name="jsonMatchesTheServerFields" classname="com.champoncall.app.BookingFormTest" time="0.033"/>
+  <testcase name="emptyFormListsEverythingMissing" classname="com.champoncall.app.BookingFormTest" time="0.003"/>
+  <testcase name="scheduledNeedsAFutureTime" classname="com.champoncall.app.BookingFormTest" time="0.0"/>
+  <testcase name="consentIsRequired" classname="com.champoncall.app.BookingFormTest" time="0.0"/>
+  <testcase name="scheduledJsonCarriesTheTime" classname="com.champoncall.app.BookingFormTest" time="0.015"/>
+  <testcase name="phoneMustHaveTenDigits" classname="com.champoncall.app.BookingFormTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

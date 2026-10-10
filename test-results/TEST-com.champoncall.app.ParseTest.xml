@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.champoncall.app.ParseTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-10-10T16:58:33" hostname="runnervmmprz5" time="0.147">
+  <properties/>
+  <testcase name="config" classname="com.champoncall.app.ParseTest" time="0.032"/>
+  <testcase name="places" classname="com.champoncall.app.ParseTest" time="0.0"/>
+  <testcase name="configFallsBackToDefaults" classname="com.champoncall.app.ParseTest" time="0.001"/>
+  <testcase name="historyListsEveryChannel" classname="com.champoncall.app.ParseTest" time="0.024"/>
+  <testcase name="pay" classname="com.champoncall.app.ParseTest" time="0.022"/>
+  <testcase name="trackInProgress" classname="com.champoncall.app.ParseTest" time="0.018"/>
+  <testcase name="supportNumberDefault" classname="com.champoncall.app.ParseTest" time="0.005"/>
+  <testcase name="trackCompletedWithBill" classname="com.champoncall.app.ParseTest" time="0.033"/>
+  <testcase name="trackRated" classname="com.champoncall.app.ParseTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
