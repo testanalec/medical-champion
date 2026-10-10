@@ -134,7 +134,8 @@ export function registerPublic(r: Router) {
       eta: r.estimated_arrival, actual_arrival: r.actual_arrival, service_start_time: r.service_start_time, service_end_time: r.service_end_time,
       duration_minutes: r.service_duration_minutes, completion_type: r.completion_type,
       quoted_amount: r.quoted_amount, final_amount: r.final_amount, charge_breakdown: r.charge_breakdown, payment_status: r.payment_status,
-      payment: pay ? { id: pay.id, amount: pay.amount, status: pay.status, url: pay.payment_link_url, provider: pay.provider, method: pay.method, paid_at: pay.paid_at } : null,
+      // Without a live gateway there is no real online payment: the practice (sandbox) checkout is only offered in demo mode
+      payment: pay ? { id: pay.id, amount: pay.amount, status: pay.status, url: pay.provider === 'sandbox' && !(await getSetting('security')).demo_mode ? null : pay.payment_link_url, provider: pay.provider, method: pay.method, paid_at: pay.paid_at } : null,
       expenses, timeline: events, rating, trust_again: trust?.trust_again ?? null, can_rate: r.current_status === 'COMPLETED' && !rating,
       human_review_required: r.human_review_required, cancellation_reason: r.cancellation_reason,
       support: { phone: contact.support_phone, phone_display: contact.support_phone_display, whatsapp: contact.whatsapp_number, hours: contact.support_hours },

@@ -17,8 +17,8 @@ android {
         applicationId = "com.champoncall.app"
         minSdk = 21
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.4.0"
+        versionCode = 6
+        versionName = "1.4.1"
         buildConfigField("String", "API_BASE", "\"https://www.champoncall.com\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

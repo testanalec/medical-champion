@@ -130,7 +130,7 @@ class Bot {
       body: "Hi 👋\n\nWe're here when you can't be.\n\nWould you like:",
       buttons: [
         { id: 'help_now', title: '🚨 Get Help Now' },
-        { id: 'schedule', title: '📅 Schedule a Companion' },
+        { id: 'schedule', title: '📅 Book for Later' },
         { id: 'talk', title: '📞 Talk to Us' },
       ],
     });
@@ -159,6 +159,9 @@ class Bot {
       return this.welcome();
     }
     if (id === 'track') return this.activeStatus(true);
+    if (/^rate_[1-5]$/.test(id) || (['ACTIVE', 'MENU', 'START'].includes(this.step) && /^[1-5]\s*(★|⭐|stars?)?$/.test(low) && !!(await this.lastCompleted()))) return this.rate(Number(id ? id.slice(5) : low[0]));
+    if (id === 'trust_yes' || id === 'trust_no') return this.trust(id === 'trust_yes');
+    if (this.step === 'RATE_COMMENT' && text) return this.rateComment(text);
 
     switch (this.step) {
       case 'START':
@@ -196,13 +199,27 @@ class Bot {
         this.draft.relationship_detail = text.slice(0, 60);
         return this.askPatientDetails();
       case 'PATIENT_DETAILS':
+      case 'PATIENT_NAME': {
+        if (id === 'skip' || !text) return this.askPatientAge();
+        // Someone may still type both ("Kamla Devi, 72") – keep the name and the age separately
+        const ageM = text.match(/(?:^|[\s,\-–(])(\d{1,3})\s*(?:yrs?|years?|y|saal)?\s*\)?\s*(?:old)?\s*$/i);
+        const name = (ageM ? text.slice(0, ageM.index) : text).replace(/\b(age|aged|umar)\b\s*[:\-]?\s*$/i, '').replace(/[\s,\-–:]+$/, '').trim();
+        if (name && /[a-z]/i.test(name)) this.draft.patient_name = name.replace(/^(name\s*(is|:)?\s*)/i, '').slice(0, 80);
+        if (ageM && Number(ageM[1]) > 0 && Number(ageM[1]) < 120) {
+          this.draft.patient_age = Number(ageM[1]);
+          return this.askLocation();
+        }
+        return this.askPatientAge();
+      }
+      case 'PATIENT_AGE': {
         if (id !== 'skip' && text) {
-          const ageM = text.match(/(\d{1,3})/);
-          const name = text.replace(/[,\-–]?\s*\d{1,3}\s*(yrs?|years?)?/i, '').trim();
-          if (ageM && Number(ageM[1]) > 0 && Number(ageM[1]) < 120) this.draft.patient_age = Number(ageM[1]);
-          if (name) this.draft.patient_name = name.slice(0, 80);
+          const ageM = text.match(/\d{1,3}/);
+          const age = ageM ? Number(ageM[0]) : NaN;
+          if (!(age > 0 && age < 120)) return this.say({ body: 'Please send their age as a number, e.g. *72*.', buttons: [{ id: 'skip', title: 'Skip' }] });
+          this.draft.patient_age = age;
         }
         return this.askLocation();
+      }
       case 'LOCATION':
         if (input.kind === 'location') {
           const label = input.address || input.name || (await reverseLabel(input.lat, input.lng));
@@ -241,12 +258,22 @@ class Bot {
         return this.askMobility();
       }
       case 'SCHEDULE_DATETIME': {
-        const d = parseDateTime(text);
-        if (!d) return this.say('Sorry, I could not read that. Please send the date and time like *28/09 10:30 AM* or *tomorrow 9 am*.');
+        // A date sent earlier without a time ("15 nov") is combined with this reply ("11 am")
+        const alone = parseDateTimeEx(text);
+        const p = this.draft.pending_date && !alone.hadDate ? parseDateTimeEx(`${this.draft.pending_date} ${text}`) : alone;
+        if (!p.date && p.dateOnly) {
+          this.draft.pending_date = p.dateOnly;
+          const [yy, mm, dd] = p.dateOnly.split('-').map(Number);
+          const label = new Date(Date.UTC(yy, mm - 1, dd, 6)).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+          return this.say(`⏰ What time on *${label}*? (for example *10 am* or *4:30 pm*)`);
+        }
+        const d = p.date;
+        if (!d) return this.say('Sorry, I could not read that. Please send the date and time, for example *10 Oct 11 am*, *tomorrow 9 am* or *Monday 4 pm*.');
         if (d.getTime() < Date.now() + 30 * 60000) return this.say('Please choose a time at least 30 minutes from now. For urgent help, type *menu* and choose Get Help Now.');
         if (d.getTime() > Date.now() + 60 * 86400000) return this.say('We can schedule up to 60 days ahead. Please send an earlier date.');
         this.draft.requested_at = d.toISOString();
-        await this.say(`📅 Noted: *${fmtIST(d)}*`);
+        delete this.draft.pending_date;
+        await this.say(`📅 Noted: *${fmtIST(d)}*. If that's not right, type *menu* to start again.`);
         return this.askMobility();
       }
       case 'MOBILITY': {
@@ -327,8 +354,12 @@ class Bot {
     });
   }
   async askPatientDetails() {
-    this.step = 'PATIENT_DETAILS';
-    await this.say({ body: "What is their *name and age*? (e.g. _Kamla Devi, 72_)\n\nThis helps our companion greet them correctly.", buttons: [{ id: 'skip', title: 'Skip' }] });
+    this.step = 'PATIENT_NAME';
+    await this.say({ body: "What is their *name*? (e.g. _Kamla Devi_)\n\nThis helps our companion greet them correctly.", buttons: [{ id: 'skip', title: 'Skip' }] });
+  }
+  async askPatientAge() {
+    this.step = 'PATIENT_AGE';
+    await this.say({ body: `How old is ${this.draft.patient_name ? `*${this.draft.patient_name}*` : 'the patient'}? (e.g. _72_)`, buttons: [{ id: 'skip', title: 'Skip' }] });
   }
   async askLocation() {
     this.step = 'LOCATION';
@@ -360,13 +391,13 @@ class Bot {
   }
   async askSchedule() {
     this.step = 'SCHEDULE_DATETIME';
-    await this.say('📅 Please send the *date and time* – for example *28/09 10:30 AM* or *tomorrow 9 am*.');
+    await this.say('📅 When do you need the companion? Send the *date and time* in any format, for example *10 Oct 11 am*, *tomorrow 9 am* or *Monday 4 pm*.');
   }
   async askMobility() {
     this.step = 'MOBILITY';
     await this.say({
       body: '🚶 *Can they walk independently?*',
-      buttons: [{ id: 'm_yes', title: 'Yes' }, { id: 'm_some', title: 'Needs some assistance' }, { id: 'm_no', title: 'No / Bedridden' }],
+      buttons: [{ id: 'm_yes', title: 'Yes' }, { id: 'm_some', title: 'Needs some help' }, { id: 'm_no', title: 'No / Bedridden' }],
     });
   }
   async askDestination() {
@@ -374,7 +405,7 @@ class Bot {
     await this.say({
       body: '🏥 *Which hospital/clinic are they going to?*\n\nChoose from the list or type the name.',
       list: { button: 'Choose hospital', rows: [
-        ...HOSPITAL_ROWS.map((h, i) => ({ id: `dest_${i}`, title: h.length > 24 ? h.replace('Memorial Research Institute', 'FMRI').replace(' – The Medicity', '').slice(0, 24) : h })),
+        ...HOSPITAL_ROWS.map((h, i) => ({ id: `dest_${i}`, title: h.length > 24 ? h.replace('Memorial Research Institute', 'FMRI').replace(' – The Medicity', '').replace(' Hospital Gurugram', ' Hospital').slice(0, 24) : h })),
         { id: 'dest_other', title: 'Other (type name)' },
         { id: 'dest_none', title: 'Not decided' },
       ] },
@@ -447,6 +478,45 @@ class Bot {
     this.draft = {};
   }
 
+  // ---- ratings collected inside WhatsApp (the "Rate us" list sent after the service)
+  async lastCompleted() {
+    return (await sql`SELECT r.id, r.request_number, r.assigned_companion_id FROM service_requests r JOIN customers c ON c.id = r.customer_id
+      WHERE c.phone = ${this.phone} AND r.current_status = 'COMPLETED' AND r.updated_at > now() - interval '30 days'
+      ORDER BY r.updated_at DESC LIMIT 1`)[0];
+  }
+  async rate(stars: number) {
+    const r = await this.lastCompleted();
+    if (!r) { this.step = 'MENU'; return this.say('Thank you! We could not find a recently completed visit to rate. Type *menu* to see options.'); }
+    const done = (await sql`SELECT overall FROM ratings WHERE request_id = ${r.id}`)[0];
+    if (done) { this.step = 'MENU'; return this.say(`🙏 You have already rated ${r.request_number} (${done.overall}★). Thank you!`); }
+    await sql`INSERT INTO ratings (request_id, companion_id, overall) VALUES (${r.id}, ${r.assigned_companion_id}, ${stars}) ON CONFLICT (request_id) DO NOTHING`;
+    await sql`INSERT INTO status_events (request_id, event_type, label, actor_type, actor_name, customer_visible)
+              VALUES (${r.id}, 'rated', ${`Rated ${stars}★ on WhatsApp`}, 'customer', ${this.customer?.name || this.phone}, false)`;
+    if (stars <= 2) await alertOps(r.id, 'low_rating', `⚠ Low rating on ${r.request_number}`, `${stars}★ given on WhatsApp`, 'WARNING');
+    this.draft = { ...this.draft, rating_request: r.id };
+    this.step = 'RATE_TRUST';
+    await this.say({ body: `Thank you for rating ${stars}★ 🙏\n\nWould you trust us to help your family again?`, buttons: [{ id: 'trust_yes', title: '👍 Yes' }, { id: 'trust_no', title: '👎 No' }] });
+  }
+  async trust(yes: boolean) {
+    const rid = this.draft.rating_request || (await this.lastCompleted())?.id;
+    if (rid) {
+      await sql`INSERT INTO trust_responses (request_id, trust_again) VALUES (${rid}, ${yes}) ON CONFLICT (request_id) DO NOTHING`;
+      if (!yes) await alertOps(rid, 'low_rating', 'Customer would not trust us again', 'Answered "No" on WhatsApp – please call them', 'WARNING');
+    }
+    this.step = 'RATE_COMMENT';
+    await this.say({ body: yes ? 'Wonderful, thank you! Anything you would like to tell us or your Champ? (optional)' : "We're sorry we let you down. Please tell us what went wrong – our team will call you.", buttons: [{ id: 'restart', title: 'No, thanks' }] });
+  }
+  async rateComment(text: string) {
+    const rid = this.draft.rating_request || (await this.lastCompleted())?.id;
+    if (rid) {
+      await sql`UPDATE ratings SET comment = ${text.slice(0, 1000)} WHERE request_id = ${rid} AND comment IS NULL`;
+      await alertOps(rid, 'rating_comment', 'Customer feedback', text.slice(0, 300), 'INFO');
+    }
+    this.step = 'MENU';
+    this.draft = {};
+    await this.say('🙏 Thank you for your feedback. Type *menu* whenever you need us again.');
+  }
+
   async activeStatus(withLink = false) {
     if (!this.activeRequestId) return this.welcome();
     const r = (await sql`SELECT * FROM service_requests WHERE id = ${this.activeRequestId}`)[0];
@@ -470,35 +540,124 @@ function istDate(y: number, mo: number, d: number, h: number, mi: number) {
 export function fmtIST(d: Date) {
   return d.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
 }
+const MONTHS: Record<string, number> = {
+  jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6,
+  aug: 7, august: 7, sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+};
+const WEEKDAYS: Record<string, number> = {
+  sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tues: 2, tuesday: 2, wed: 3, wednesday: 3,
+  thu: 4, thur: 4, thurs: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6,
+};
+const MONTH_RE = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+
+/**
+ * Reads a date and time written the way people actually type it, in India time. Examples that work:
+ * "10 oct 11pm", "oct 10 at 11:30 pm", "10/10 23:00", "tomorrow 9 am", "kal subah 10 baje", "monday 4pm",
+ * "11pm" (today, or tomorrow if that time has passed), "10th October 2026 10.30am", "2026-10-10 18:00".
+ */
 export function parseDateTime(input: string): Date | null {
-  const s = input.toLowerCase().replace(/\s+/g, ' ').trim();
+  return parseDateTimeEx(input).date;
+}
+
+/** Like parseDateTime, but also reports a date given without a time ("15 nov") so the bot can ask for the time. */
+export function parseDateTimeEx(input: string): { date: Date | null; dateOnly: string | null; hadDate: boolean } {
+  const none = { date: null, dateOnly: null, hadDate: false };
+  let s = ` ${String(input || '').toLowerCase()} `
+    .replace(/[,;]/g, ' ')
+    .replace(/(\d)(st|nd|rd|th)\b/g, '$1')
+    .replace(/\b(a\.m\.?|a m)\b/g, 'am').replace(/\b(p\.m\.?|p m)\b/g, 'pm')
+    .replace(/\bbaje\b|\bo'?clock\b|\bhrs?\b/g, ' ')
+    .replace(/\s+/g, ' ');
   const nowIst = new Date(Date.now() + 330 * 60000);
-  let y = nowIst.getUTCFullYear();
-  let mo = nowIst.getUTCMonth();
-  let d = nowIst.getUTCDate();
-  let rest = s;
-  const rel = s.match(/^(today|tomorrow|tmrw|kal)\b\s*(.*)$/);
-  const abs = s.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\s*(.*)$/);
-  if (rel) {
-    if (rel[1] !== 'today') {
-      const t = new Date(Date.UTC(y, mo, d) + 86400000);
-      y = t.getUTCFullYear(); mo = t.getUTCMonth(); d = t.getUTCDate();
+  const todayY = nowIst.getUTCFullYear(), todayM = nowIst.getUTCMonth(), todayD = nowIst.getUTCDate();
+
+  // ---- time
+  let h = null as number | null;
+  let mi = 0;
+  const take = (re: RegExp, fn: (m: RegExpMatchArray) => boolean) => {
+    const m = s.match(re);
+    if (m && fn(m)) { s = s.replace(m[0], ' '); return true; }
+    return false;
+  };
+  take(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)\b/, (m) => {
+    h = Number(m[1]); mi = Number(m[2] || 0);
+    if (h < 1 || h > 12 || mi > 59) return false;
+    if (m[3] === 'pm' && h < 12) h += 12;
+    if (m[3] === 'am' && h === 12) h = 0;
+    return true;
+  }) ||
+  take(/\b([01]?\d|2[0-3])[:](\d{2})\b/, (m) => { h = Number(m[1]); mi = Number(m[2]); return mi <= 59; }) ||
+  take(/\b(noon|midday)\b/, () => { h = 12; return true; }) ||
+  take(/\bmidnight\b/, () => { h = 0; return true; });
+  // Hindi/English part-of-day words decide am/pm for a bare hour ("kal subah 10", "tomorrow evening 6")
+  let part = null as 'am' | 'pm' | null;
+  take(/\b(morning|subah|savere)\b/, () => { part = 'am'; return true; });
+  take(/\b(afternoon|dopahar|evening|shaam|sham|night|raat|tonight)\b/, (m) => { part = 'pm'; if (m[1] === 'tonight') s += ' today '; return true; });
+
+  // ---- date
+  let y = null as number | null, mo = null as number | null, d = null as number | null;
+  const setYmd = (yy: number, mm: number, dd: number) => { y = yy; mo = mm; d = dd; return true; };
+  const addDays = (n: number) => { const t = new Date(Date.UTC(todayY, todayM, todayD) + n * 86400000); return setYmd(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate()); };
+  const fullYear = (v?: string) => (v ? Number(v.length === 2 ? '20' + v : v) : null);
+  let explicitYear = false as boolean;
+  take(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/, (m) => { explicitYear = true; return setYmd(Number(m[1]), Number(m[2]) - 1, Number(m[3])); }) ||
+  take(new RegExp(`\\b(\\d{1,2})\\s*(?:-|\\s|of\\s)?${MONTH_RE}\\b(?:\\s*(\\d{4}))?`), (m) => {
+    const yy = fullYear(m[3]); if (yy) explicitYear = true;
+    return setYmd(yy ?? todayY, MONTHS[m[2]] ?? MONTHS[m[2].slice(0, 3)], Number(m[1]));
+  }) ||
+  take(new RegExp(`\\b${MONTH_RE}\\s*(\\d{1,2})\\b(?:\\s*(\\d{4}))?`), (m) => {
+    const yy = fullYear(m[3]); if (yy) explicitYear = true;
+    return setYmd(yy ?? todayY, MONTHS[m[1]] ?? MONTHS[m[1].slice(0, 3)], Number(m[2]));
+  }) ||
+  take(/\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\b/, (m) => {
+    const yy = fullYear(m[3]); if (yy) explicitYear = true;
+    return setYmd(yy ?? todayY, Number(m[2]) - 1, Number(m[1]));
+  }) ||
+  take(/\b(day after tomorrow|parso|parson)\b/, () => addDays(2)) ||
+  take(/\b(tomorrow|tmrw|tmr|tomorow|tommorow|tommorrow|kal)\b/, () => addDays(1)) ||
+  take(/\b(today|aaj|tonight)\b/, () => addDays(0)) ||
+  take(/\b(?:next\s+|this\s+|coming\s+)?(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs?|rsday)?|fri(?:day)?|sat(?:urday)?)\b/, (m) => {
+    const want = WEEKDAYS[m[1]];
+    const today = new Date(Date.UTC(todayY, todayM, todayD)).getUTCDay();
+    let diff = (want - today + 7) % 7;
+    if (diff === 0) diff = 7;
+    return addDays(diff);
+  });
+
+  // A bare hour left over ("10 oct 11", "tomorrow 4") – read 1–7 as afternoon/evening unless "morning" was said
+  if (h == null) {
+    const m = s.match(/\b(\d{1,2})(?:[:.](\d{2}))?\b/);
+    if (m && Number(m[1]) <= 23) {
+      h = Number(m[1]); mi = Number(m[2] || 0);
+      if (mi > 59) return none;
+      if (part === 'pm' && h < 12) h += 12;
+      else if (part === 'am' && h === 12) h = 0;
+      else if (!part && h >= 1 && h <= 7) h += 12;
     }
-    rest = rel[2];
-  } else if (abs) {
-    d = Number(abs[1]); mo = Number(abs[2]) - 1;
-    if (abs[3]) y = Number(abs[3].length === 2 ? '20' + abs[3] : abs[3]);
-    rest = abs[4];
-    if (!abs[3] && istDate(y, mo, d, 23, 59).getTime() < Date.now()) y += 1;
-  } else return null;
-  const tm = rest.replace(/^(at|@)\s*/, '').match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?/);
-  if (!tm) return null;
-  let h = Number(tm[1]);
-  const mi = Number(tm[2] || 0);
-  if (tm[3] === 'pm' && h < 12) h += 12;
-  if (tm[3] === 'am' && h === 12) h = 0;
-  if (h > 23 || mi > 59 || mo < 0 || mo > 11 || d < 1 || d > 31) return null;
-  return istDate(y, mo, d, h, mi);
+  } else if (part === 'pm' && h < 12) h += 12;
+  if (h == null) {
+    if (part === 'am') h = 9;
+    else if (part === 'pm') h = 17;
+    else if (d != null && mo! >= 0 && mo! <= 11 && d! >= 1 && d! <= 31) {
+      let yy = y!;
+      if (!explicitYear && istDate(yy, mo!, d!, 23, 59).getTime() < Date.now()) yy += 1;
+      return { date: null, hadDate: true, dateOnly: `${yy}-${String(mo! + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` };
+    } else return none;
+  }
+  if (h > 23) return none;
+
+  if (d == null) {
+    // Only a time: today, or tomorrow if that time has already passed
+    let t = istDate(todayY, todayM, todayD, h, mi);
+    if (t.getTime() < Date.now()) t = new Date(t.getTime() + 86400000);
+    return { date: t, dateOnly: null, hadDate: false };
+  }
+  if (mo! < 0 || mo! > 11 || d! < 1 || d! > 31) return none;
+  let out = istDate(y!, mo!, d!, h, mi);
+  const check = new Date(out.getTime() + 330 * 60000);
+  if (check.getUTCDate() !== d) return none; // e.g. 31 Feb
+  if (!explicitYear && out.getTime() < Date.now() - 86400000) out = istDate(y! + 1, mo!, d!, h, mi);
+  return { date: out, dateOnly: null, hadDate: true };
 }
 
 /** Builds a Meta-format webhook payload (used by the in-app simulator so it exercises the real webhook code path). */

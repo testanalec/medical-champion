@@ -19,16 +19,57 @@ export function baseUrl() {
   return 'http://localhost:3000';
 }
 
+/** +919205640777 -> +91 92056 40777 */
+function fmtPhone(p?: string | null) {
+  if (!p) return '';
+  const m = String(p).match(/^\+91(\d{5})(\d{5})$/);
+  return m ? `+91 ${m[1]} ${m[2]}` : String(p);
+}
+
 export function render(text: string, vars: Record<string, any>) {
   return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (vars[k] ?? '').toString());
+}
+
+const paymentsOnline = () => !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+
+export const RATING_ROWS = [
+  { id: 'rate_5', title: '5 ★ Excellent' }, { id: 'rate_4', title: '4 ★ Good' }, { id: 'rate_3', title: '3 ★ Okay' },
+  { id: 'rate_2', title: '2 ★ Poor' }, { id: 'rate_1', title: '1 ★ Very poor' },
+];
+
+/**
+ * Additions to the customer messages saved in the database, so existing installs get them too
+ * (a line is only added when the saved text doesn't already mention it).
+ */
+function upgradeBody(key: string, body: string) {
+  const add = (line: string, marker: string) => { if (!body.includes(marker)) body += line; };
+  if (key === 'companion_assigned') add("\n📞 Champ's mobile: {{companion_phone}}", '{{companion_phone}}');
+  if (key === 'request_confirmed' || key === 'companion_assigned') {
+    add('\n\n🔐 Booking code: *{{booking_code}}*\nYour Champ will ask for this code when they arrive. Please share it only with them.', '{{booking_code}}');
+  }
+  if (key === 'service_completed' && !paymentsOnline()) add('\n\n💳 You can pay by UPI or cash. Our team will share the payment details with you.', 'UPI');
+  if (key === 'service_completed' || key === 'payment_received') add('\n\n⭐ How was your experience? Tap *Rate us* below.', 'Rate us');
+  return body;
 }
 
 export async function renderTemplate(key: string, vars: Record<string, any>): Promise<OutMsg> {
   const rows = await sql`SELECT * FROM message_templates WHERE key = ${key} AND active`;
   const t = rows[0];
   if (!t) return { body: render(vars.fallback_body || key, vars) };
-  const msg: OutMsg = { body: render(t.body, vars), template: key };
-  const btns = (t.buttons || []) as any[];
+  const msg: OutMsg = { body: render(upgradeBody(key, t.body), vars), template: key };
+  // Ratings are collected right here in WhatsApp; there is no online payment page without a payment gateway
+  const isRatingMsg = key === 'service_completed' || key === 'payment_received';
+  const btns = ((t.buttons || []) as any[]).filter((b) => {
+    const url = String(b.url || '');
+    if (url.includes('rate_url')) return false;
+    if (url.includes('pay_url') && !paymentsOnline()) return false;
+    if (isRatingMsg && url.includes('summary_url')) return false;
+    return true;
+  });
+  if (isRatingMsg) {
+    msg.list = { button: 'Rate us', rows: RATING_ROWS };
+    return msg;
+  }
   const replies = btns.filter((b) => b.type === 'reply');
   const actions = btns.filter((b) => b.type === 'url' || b.type === 'call');
   if (replies.length) msg.buttons = replies.map((b) => ({ id: b.id, title: render(b.title, vars) }));
@@ -39,7 +80,7 @@ export async function renderTemplate(key: string, vars: Record<string, any>): Pr
 export async function requestVars(requestId: string): Promise<Record<string, any>> {
   const rows = await sql`
     SELECT r.*, c.name AS customer_name, c.phone AS customer_phone, p.relationship, p.name AS patient_name,
-           cmp.name AS companion_name, cmp.code AS companion_code, cmp.languages AS companion_languages,
+           cmp.name AS companion_name, cmp.code AS companion_code, cmp.languages AS companion_languages, cmp.phone AS companion_phone,
            dl.place_name AS dest_place, dl.address AS dest_address
     FROM service_requests r
     JOIN customers c ON c.id = r.customer_id
@@ -66,6 +107,8 @@ export async function requestVars(requestId: string): Promise<Record<string, any
     companion_name: r.companion_name || 'Your companion',
     companion_first: (r.companion_name || 'Your companion').split(' ')[0],
     companion_code: r.companion_code || '',
+    companion_phone: fmtPhone(r.companion_phone) || contact.support_phone_display || contact.support_phone,
+    booking_code: r.booking_code || '',
     languages: (r.companion_languages || []).join(', '),
     eta,
     destination: r.dest_place || r.dest_address || 'the hospital',
@@ -173,8 +216,11 @@ export async function notifyCustomer(requestId: string, template: string, event:
     if (s.customer_updates !== false && text && validEmail(c?.email)) {
       const heading = EVENT_HEADINGS[event] || humanize(event);
       await sendEmail({
-        to: c.email, subject: `${heading} · ${vars.request_number || 'ChampOnCall'}`, heading, text: String(n?.body || text),
-        buttonText: 'Track your request', buttonUrl: vars.track_url, recipientType: 'customer', requestId, event,
+        to: c.email, subject: `${heading} · ${vars.request_number || 'ChampOnCall'}`, heading,
+        // In email the rating happens on the website (there is no WhatsApp "Rate us" list)
+        text: String(n?.body || text).replace(/\n*⭐ How was your experience\? Tap \*Rate us\* below\./, '\n\n⭐ How was your experience? Please rate us using the button below.'),
+        buttonText: /Rate us/.test(String(n?.body || '')) ? 'Rate your experience' : 'Track your request',
+        buttonUrl: /Rate us/.test(String(n?.body || '')) ? vars.rate_url : vars.track_url, recipientType: 'customer', requestId, event,
       });
     }
   } catch (e: any) {

@@ -65,9 +65,22 @@ export async function transitionTx(
 }
 
 // ------------------------------------------------------------------ Request creation (FRD §11)
+const CITY_NAMES: [RegExp, string][] = [
+  [/\b(gurugram|gurgaon|ggn)\b/i, 'Gurugram'], [/\b(new delhi|delhi)\b/i, 'Delhi'], [/\bnoida\b/i, 'Noida'],
+  [/\bgreater noida\b/i, 'Greater Noida'], [/\bfaridabad\b/i, 'Faridabad'], [/\bghaziabad\b/i, 'Ghaziabad'],
+  [/\bmanesar\b/i, 'Manesar'], [/\bsohna\b/i, 'Sohna'], [/\brewari\b/i, 'Rewari'], [/\bjaipur\b/i, 'Jaipur'],
+  [/\bmumbai\b/i, 'Mumbai'], [/\b(bengaluru|bangalore)\b/i, 'Bengaluru'], [/\bchandigarh\b/i, 'Chandigarh'],
+];
+/** City named in an address ("…Sector 56, Gurugram, Haryana"), most specific first. */
+export function cityFromAddress(address?: string | null): string | null {
+  if (!address) return null;
+  for (const [re, name] of [...CITY_NAMES].sort((a, b) => b[1].length - a[1].length)) if (re.test(address)) return name;
+  return null;
+}
+
 export interface CreateRequestInput {
   channel: 'whatsapp' | 'web' | 'phone' | 'ops';
-  customer: { name?: string | null; phone: string; email?: string | null };
+  customer: { name?: string | null; phone: string; email?: string | null; city?: string | null };
   patient: {
     name?: string | null; age?: number | null; gender?: string | null; relationship?: string | null; phone?: string | null;
     language?: string | null; consent?: boolean;
@@ -103,6 +116,7 @@ export async function createServiceRequest(input: CreateRequestInput, a: Actor, 
     if (g) { pLat = g.lat; pLng = g.lng; pSource = `typed+${g.source}`; }
   }
   const area = await checkServiceArea(pLat, pLng, input.pickup.address ?? null);
+  const city = input.customer.city?.trim() || cityFromAddress(input.pickup.address) || (area.areaId ? (await sql`SELECT city FROM service_areas WHERE id = ${area.areaId}`)[0]?.city : null) || null;
 
   let dLat = input.destination?.lat ?? null;
   let dLng = input.destination?.lng ?? null;
@@ -127,9 +141,10 @@ export async function createServiceRequest(input: CreateRequestInput, a: Actor, 
 
   const result = await sql.begin(async (tx: any) => {
     const cust = (await tx`
-      INSERT INTO customers (name, phone, email, source, utm)
-      VALUES (${input.customer.name ?? null}, ${input.customer.phone}, ${input.customer.email ?? null}, ${input.source ?? input.channel}, ${tx.json(input.utm ?? {})})
-      ON CONFLICT (phone) DO UPDATE SET name = COALESCE(EXCLUDED.name, customers.name), email = COALESCE(EXCLUDED.email, customers.email), updated_at = now()
+      INSERT INTO customers (name, phone, email, city, source, utm)
+      VALUES (${input.customer.name ?? null}, ${input.customer.phone}, ${input.customer.email ?? null}, ${city}, ${input.source ?? input.channel}, ${tx.json(input.utm ?? {})})
+      ON CONFLICT (phone) DO UPDATE SET name = COALESCE(EXCLUDED.name, customers.name), email = COALESCE(EXCLUDED.email, customers.email),
+        city = COALESCE(EXCLUDED.city, customers.city), updated_at = now()
       RETURNING *`)[0];
 
     // Reuse patient profile for repeat bookings of the same relationship/name

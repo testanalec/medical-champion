@@ -175,7 +175,7 @@ fun BookScreen(onBack: () -> Unit, onTrack: (String) -> Unit, onHome: () -> Unit
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppButton(
                         "Book on WhatsApp",
-                        { openWhatsApp(context, config.whatsappNumber, config.whatsappPrefill + " [ref: android_app]") },
+                        { openWhatsApp(context, config.whatsappNumber, config.whatsappPrefill) },
                         Modifier.weight(1.3f).testTag("book-whatsapp"), BtnKind.WhatsApp, icon = R.drawable.fa_whatsapp,
                     )
                     AppButton("Call us", { dial(context, config.supportPhone) }, Modifier.weight(1f), BtnKind.Secondary, icon = R.drawable.fi_phone)

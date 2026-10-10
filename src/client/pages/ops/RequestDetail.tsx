@@ -508,13 +508,18 @@ function CompleteModal({ d, types, onClose, onDone }: { d: any; types: string[];
 
 function CancelModal({ d, to, reasons, onClose, onDone }: { d: any; to: string; reasons: string[]; onClose: () => void; onDone: () => void }) {
   const [reason, setReason] = useState('');
+  const [custom, setCustom] = useState('');
   const [notes, setNotes] = useState('');
   const { busy, run } = useAction();
+  const options = reasons.includes('Other') ? reasons : [...reasons, 'Other'];
+  const isOther = reason === 'Other';
+  const finalReason = isOther ? custom.trim() : reason;
   return (
-    <Modal open onClose={onClose} title={to === 'CANCELLED' ? `Cancel ${d.request_number}` : `Mark ${d.request_number} unfulfilled`} footer={<><button className="btn btn-secondary" onClick={onClose}>Back</button><Button className="btn-danger" loading={!!busy} disabled={!reason} onClick={async () => { const r = await run('c', () => post(`/api/v1/requests/${d.id}/status`, { to, reason, notes }), 'Request closed'); if (r) onDone(); }}>Confirm</Button></>}>
-      <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Select a reason" options={reasons} /></Field>
-      <Field label="Notes" className="mt-3"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-      <p className="mt-2 text-xs text-slate-500">The customer is informed on WhatsApp. Any pending companion offer is withdrawn.</p>
+    <Modal open onClose={onClose} title={to === 'CANCELLED' ? `Cancel ${d.request_number}` : `Mark ${d.request_number} unfulfilled`} footer={<><button className="btn btn-secondary" onClick={onClose}>Back</button><Button className="btn-danger" loading={!!busy} disabled={!finalReason} onClick={async () => { const r = await run('c', () => post(`/api/v1/requests/${d.id}/status`, { to, reason: finalReason, notes }), 'Request closed'); if (r) onDone(); }} data-testid="cancel-confirm">Confirm</Button></>}>
+      <Field label="Reason (sent to the customer)"><Select value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Select a reason" options={options} /></Field>
+      {isOther && <Field label="Type the reason" className="mt-3"><Input value={custom} onChange={(e) => setCustom(e.target.value)} maxLength={200} placeholder="e.g. Doctor's appointment moved to next week" autoFocus data-testid="cancel-reason-text" /></Field>}
+      <Field label="Internal notes (not sent to the customer)" className="mt-3"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+      <p className="mt-2 text-xs text-slate-500">The customer is informed on WhatsApp with this reason. Any pending companion offer is withdrawn.</p>
     </Modal>
   );
 }

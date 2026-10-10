@@ -37,8 +37,10 @@ const waitFor = async (text) => cust.getByTestId('sim-messages').getByText(text)
 await waitFor("We're here when you can't be.");
 await tap('btn-help_now'); await waitFor('Is this a medical emergency?');
 await tap('btn-continue'); await waitFor('Who needs assistance?');
-await tap('btn-list'); await tap('row-rel_mother'); await waitFor('name and age');
-await cust.getByTestId('sim-input').fill('Kamla Devi, 74'); await cust.getByTestId('sim-input').press('Enter');
+await tap('btn-list'); await tap('row-rel_mother'); await waitFor('What is their');
+await cust.getByTestId('sim-input').fill('Kamla Devi'); await cust.getByTestId('sim-input').press('Enter');
+await waitFor('How old is');
+await cust.getByTestId('sim-input').fill('74'); await cust.getByTestId('sim-input').press('Enter');
 await waitFor('Please share their location.');
 await cust.getByTestId('sim-location').click(); await cust.getByTestId('place-Sushant Lok 1').click();
 await waitFor('What kind of help');

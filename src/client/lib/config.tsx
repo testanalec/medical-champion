@@ -45,8 +45,7 @@ export function getUtm(): Record<string, string> {
 export function whatsappHref(c: PublicConfig | null) {
   const utm = getUtm();
   if (c?.contact.whatsapp_number) {
-    const ref = utm.utm_source ? ` [ref: ${[utm.utm_source, utm.utm_campaign].filter(Boolean).join('/')}]` : '';
-    return `https://wa.me/${c.contact.whatsapp_number.replace(/[^\d]/g, '')}?text=${encodeURIComponent((c.contact.whatsapp_prefill || 'Hi') + ref)}`;
+    return `https://wa.me/${c.contact.whatsapp_number.replace(/[^\d]/g, '')}?text=${encodeURIComponent(c.contact.whatsapp_prefill || 'Hi')}`;
   }
   const qs = new URLSearchParams(utm as any).toString();
   return `/whatsapp${qs ? '?' + qs : ''}`;

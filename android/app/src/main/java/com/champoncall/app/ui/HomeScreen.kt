@@ -166,7 +166,7 @@ fun HomeScreen(
     if (gate) {
         EmergencyGate(config, onDismiss = { gate = false }) {
             gate = false
-            openWhatsApp(context, config.whatsappNumber, config.whatsappPrefill + " [ref: android_app]")
+            openWhatsApp(context, config.whatsappNumber, config.whatsappPrefill)
         }
     }
 }
