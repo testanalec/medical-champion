@@ -101,7 +101,7 @@ export const DEFAULT_SETTINGS: Record<string, any> = {
   },
   security: {
     otp_ttl_seconds: 300,
-    demo_mode: true,
+    demo_mode: false,
   },
 };
 
@@ -118,13 +118,36 @@ function migrate(key: string, value: any) {
   return value;
 }
 
+// Go-live lock (Oct 2026): switch demo mode off and disable the four demo staff logins, once.
+// Only the admin login stays active. Re-enabling demo mode or the accounts later from Ops is respected.
+const DEMO_STAFF_TO_DISABLE = ['manager', 'agent', 'finance', 'support'].flatMap((n) => [`${n}@champoncall.com`, `${n}@medicalchampion.in`]);
+let goLiveLockDone: Promise<void> | null = null;
+function goLiveLock() {
+  if (!goLiveLockDone) {
+    goLiveLockDone = (async () => {
+      const row = (await sql`SELECT value FROM settings WHERE key = 'security'`)[0];
+      if (row?.value?.golive_lock_done) return;
+      await sql`UPDATE users SET active = false WHERE lower(email) = ANY(${DEMO_STAFF_TO_DISABLE})`;
+      const value = { ...DEFAULT_SETTINGS.security, ...(row?.value || {}), demo_mode: false, golive_lock_done: true };
+      await sql`INSERT INTO settings (key, value, updated_by) VALUES ('security', ${sql.json(value)}, 'system')
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now(), updated_by = EXCLUDED.updated_by`;
+    })().catch((e) => {
+      goLiveLockDone = null;
+      console.error('[settings] go-live lock failed', e?.message);
+    });
+  }
+  return goLiveLockDone;
+}
+
 export async function getSetting(key: string): Promise<any> {
+  await goLiveLock();
   const rows = await sql`SELECT value FROM settings WHERE key = ${key}`;
   const def = DEFAULT_SETTINGS[key] ?? {};
   return rows[0] ? migrate(key, { ...def, ...rows[0].value }) : def;
 }
 
 export async function getAllSettings() {
+  await goLiveLock();
   const rows = await sql`SELECT key, value FROM settings`;
   const out: Record<string, any> = {};
   for (const k of Object.keys(DEFAULT_SETTINGS)) out[k] = { ...DEFAULT_SETTINGS[k] };
