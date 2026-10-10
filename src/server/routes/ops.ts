@@ -81,11 +81,32 @@ export async function requestDetail(id: string, ctx: Ctx) {
   };
 }
 
+// Staff logins moved from the old @medicalchampion.in addresses to @champoncall.com (Oct 2026).
+const OLD_STAFF_DOMAIN = '@medicalchampion.in';
+const NEW_STAFF_DOMAIN = '@champoncall.com';
+let staffEmailsMoved: Promise<void> | null = null;
+function moveStaffEmails() {
+  if (!staffEmailsMoved) {
+    staffEmailsMoved = (async () => {
+      await sql`UPDATE users u SET email = replace(lower(u.email), ${OLD_STAFF_DOMAIN}, ${NEW_STAFF_DOMAIN})
+                WHERE lower(u.email) LIKE ${'%' + OLD_STAFF_DOMAIN}
+                  AND NOT EXISTS (SELECT 1 FROM users x WHERE lower(x.email) = replace(lower(u.email), ${OLD_STAFF_DOMAIN}, ${NEW_STAFF_DOMAIN}))`;
+    })().catch((e) => {
+      staffEmailsMoved = null;
+      console.error('[auth] could not move staff emails', e?.message);
+    });
+  }
+  return staffEmailsMoved;
+}
+
 export function registerOps(r: Router) {
   // ---------------- auth
   r.post('/api/v1/auth/login', async (ctx) => {
     await rateLimit(`login:${ctx.ip}`, 20, 900);
-    const email = String(ctx.body.email || '').trim().toLowerCase();
+    await moveStaffEmails();
+    let email = String(ctx.body.email || '').trim().toLowerCase();
+    // Old addresses keep working: admin@medicalchampion.in signs in as admin@champoncall.com
+    if (email.endsWith(OLD_STAFF_DOMAIN)) email = email.slice(0, -OLD_STAFF_DOMAIN.length) + NEW_STAFF_DOMAIN;
     const u = (await sql`SELECT * FROM users WHERE lower(email) = ${email}`)[0];
     if (u?.locked_until && new Date(u.locked_until) > new Date()) throw new HttpError(423, 'Account temporarily locked after failed attempts. Try again in 15 minutes.');
     if (!u || !u.active || !verifyPassword(String(ctx.body.password || ''), u.password_hash)) {

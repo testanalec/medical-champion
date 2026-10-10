@@ -3,11 +3,11 @@ import { GAZETTEER } from './geo';
 import { computeCharge } from './pricing';
 
 export const DEMO_USERS = [
-  { name: 'Aditi Rao', email: 'admin@medicalchampion.in', role: 'super_admin', password: 'Admin@123' },
-  { name: 'Karan Bhatia', email: 'manager@medicalchampion.in', role: 'ops_manager', password: 'Manager@123' },
-  { name: 'Sneha Kapoor', email: 'agent@medicalchampion.in', role: 'ops_agent', password: 'Agent@123' },
-  { name: 'Manish Gupta', email: 'finance@medicalchampion.in', role: 'finance', password: 'Finance@123' },
-  { name: 'Ritu Jain', email: 'support@medicalchampion.in', role: 'support', password: 'Support@123' },
+  { name: 'Aditi Rao', email: 'admin@champoncall.com', role: 'super_admin', password: 'Admin@123' },
+  { name: 'Karan Bhatia', email: 'manager@champoncall.com', role: 'ops_manager', password: 'Manager@123' },
+  { name: 'Sneha Kapoor', email: 'agent@champoncall.com', role: 'ops_agent', password: 'Agent@123' },
+  { name: 'Manish Gupta', email: 'finance@champoncall.com', role: 'finance', password: 'Finance@123' },
+  { name: 'Ritu Jain', email: 'support@champoncall.com', role: 'support', password: 'Support@123' },
 ];
 
 export const DEMO_COMPANIONS = [

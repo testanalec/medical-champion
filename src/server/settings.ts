@@ -94,7 +94,7 @@ export const DEFAULT_SETTINGS: Record<string, any> = {
     ga_measurement_id: '',
   },
   email: {
-    ops_emails: '',
+    ops_emails: 'care@champoncall.com',
     customer_updates: true,
     ops_updates: true,
     companion_updates: true,
@@ -110,6 +110,10 @@ const OLD_SUPPORT_PHONES = ['+911244000000', '+91 124 400 0000'];
 function migrate(key: string, value: any) {
   if (key === 'contact' && value && OLD_SUPPORT_PHONES.includes(value.support_phone)) {
     return { ...value, support_phone: DEFAULT_SETTINGS.contact.support_phone, support_phone_display: DEFAULT_SETTINGS.contact.support_phone_display };
+  }
+  // Operations alerts go to the shared inbox unless someone has set their own addresses
+  if (key === 'email' && value && !String(value.ops_emails || '').trim()) {
+    return { ...value, ops_emails: DEFAULT_SETTINGS.email.ops_emails };
   }
   return value;
 }

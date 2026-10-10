@@ -105,8 +105,8 @@ export function DemoGuide() {
     { icon: <FiSmartphone />, title: 'Companion PWA', to: '/companion', desc: 'OTP login, availability, job offers, step-by-step service flow, expenses, incidents, completion.' },
   ];
   const creds = [
-    ['Super Admin', 'admin@medicalchampion.in', 'Admin@123'], ['Operations Manager', 'manager@medicalchampion.in', 'Manager@123'],
-    ['Operations Agent', 'agent@medicalchampion.in', 'Agent@123'], ['Finance', 'finance@medicalchampion.in', 'Finance@123'], ['Support', 'support@medicalchampion.in', 'Support@123'],
+    ['Super Admin', 'admin@champoncall.com', 'Admin@123'], ['Operations Manager', 'manager@champoncall.com', 'Manager@123'],
+    ['Operations Agent', 'agent@champoncall.com', 'Agent@123'], ['Finance', 'finance@champoncall.com', 'Finance@123'], ['Support', 'support@champoncall.com', 'Support@123'],
   ];
   const flow = [
     'Open the WhatsApp booking page, start a chat and book for “Mother” (share a location, pick Hospital / OPD, ASAP, Medanta).',
