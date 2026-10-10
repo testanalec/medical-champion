@@ -11,14 +11,14 @@ if (file("google-services.json").exists()) {
 
 android {
     namespace = "com.champoncall.app"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.champoncall.app"
         minSdk = 21
-        targetSdk = 34
-        versionCode = 4
-        versionName = "1.3.0"
+        targetSdk = 36
+        versionCode = 5
+        versionName = "1.4.0"
         buildConfigField("String", "API_BASE", "\"https://www.champoncall.com\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
