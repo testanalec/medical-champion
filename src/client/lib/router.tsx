@@ -9,8 +9,9 @@ export function navigate(to: string, replace = false) {
   if (!to.includes('#')) window.scrollTo({ top: 0 });
 }
 
-export function RouterProvider({ children }: { children: React.ReactNode }) {
-  const read = () => ({ path: location.pathname, search: new URLSearchParams(location.search) });
+export function RouterProvider({ children, initialPath }: { children: React.ReactNode; initialPath?: string }) {
+  // initialPath is used when prerendering pages to static HTML at build time (no window there)
+  const read = () => (typeof location === 'undefined' ? { path: initialPath || '/', search: new URLSearchParams() } : { path: location.pathname, search: new URLSearchParams(location.search) });
   const [state, setState] = useState(read);
   useEffect(() => {
     const on = () => setState(read());

@@ -304,7 +304,7 @@ export function Logo({ light, compact }: { light?: boolean; compact?: boolean })
             <span style={{ color: light ? '#ffffff' : 'var(--color-brand-900)' }}>Champ</span>
             <span style={{ color: light ? 'var(--color-coral-400)' : 'var(--color-coral-500)' }}>OnCall</span>
           </span>
-          <span className="block font-semibold uppercase" style={{ marginTop: 5, fontSize: 10, letterSpacing: '0.16em', color: light ? 'var(--color-brand-200)' : 'var(--color-brand-500)' }}>Trusted help, any time</span>
+          <span className="block font-semibold uppercase" style={{ marginTop: 5, fontSize: 10, letterSpacing: '0.16em', color: light ? 'var(--color-brand-200)' : 'var(--color-brand-500)' }}>Trusted help · 7 AM–11 PM</span>
         </span>
       )}
     </span>

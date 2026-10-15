@@ -7,7 +7,21 @@ declare global {
 let started = false;
 const isInternal = () => location.pathname.startsWith('/ops') || location.pathname.startsWith('/companion');
 
-export function initAnalytics(id: string | null | undefined) {
+let clarityStarted = false;
+/** Microsoft Clarity (heatmaps & session recordings) — public pages only, never Ops or the Champ app. */
+function initClarity(id: string | null | undefined) {
+  if (clarityStarted || !id || !/^[a-z0-9]{6,20}$/i.test(id) || isInternal()) return;
+  clarityStarted = true;
+  const w = window as any;
+  w.clarity = w.clarity || function () { (w.clarity.q = w.clarity.q || []).push(arguments); };
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = `https://www.clarity.ms/tag/${encodeURIComponent(id)}`;
+  document.head.appendChild(s);
+}
+
+export function initAnalytics(id: string | null | undefined, clarityId?: string | null) {
+  initClarity(clarityId);
   if (started || !id || isInternal()) return;
   started = true;
   window.dataLayer = window.dataLayer || [];

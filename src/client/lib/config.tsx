@@ -12,16 +12,19 @@ export interface PublicConfig {
   verification_claims: string[];
   lists: { languages: string[] };
   demo_mode: boolean;
-  analytics?: { ga_id: string | null };
+  analytics?: { ga_id: string | null; clarity_id?: string | null };
   demo_accounts?: [string, string, string][];
   integrations: { whatsapp: boolean; razorpay: boolean; sms: boolean };
 }
 
 const Ctx = createContext<{ config: PublicConfig | null; reload: () => void }>({ config: null, reload: () => {} });
 
-export function ConfigProvider({ children }: { children: React.ReactNode }) {
-  const [config, setConfig] = useState<PublicConfig | null>(null);
-  const load = () => get<PublicConfig>('/api/v1/public/config').then((c) => { setConfig(c); initAnalytics(c.analytics?.ga_id); }).catch(() => setTimeout(load, 3000));
+declare global { interface Window { __MC_CONFIG__?: PublicConfig } }
+
+export function ConfigProvider({ children, initial }: { children: React.ReactNode; initial?: PublicConfig | null }) {
+  // Prerendered pages carry a config snapshot so the first render matches the static HTML; the live config replaces it.
+  const [config, setConfig] = useState<PublicConfig | null>(() => initial ?? (typeof window !== 'undefined' ? window.__MC_CONFIG__ ?? null : null));
+  const load = () => get<PublicConfig>('/api/v1/public/config').then((c) => { setConfig(c); initAnalytics(c.analytics?.ga_id, c.analytics?.clarity_id); }).catch(() => setTimeout(load, 3000));
   useEffect(() => { load(); }, []);
   return <Ctx.Provider value={{ config, reload: load }}>{children}</Ctx.Provider>;
 }

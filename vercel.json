@@ -15,11 +15,158 @@
       "destination": "/api/index?__p=:path*"
     },
     {
-      "source": "/((?!assets/|api/|sw\\.js|manifest\\.webmanifest|icon.*\\.svg).*)",
-      "destination": "/index.html"
+      "source": "/book",
+      "destination": "/book.html"
+    },
+    {
+      "source": "/safety",
+      "destination": "/safety.html"
+    },
+    {
+      "source": "/track-lookup",
+      "destination": "/track-lookup.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms.html"
+    },
+    {
+      "source": "/ops",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/ops/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/companion",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/companion/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/track/:number",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/pay/:id",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/whatsapp",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/demo",
+      "destination": "/app.html"
     }
   ],
   "headers": [
+    {
+      "source": "/(robots.txt|sitemap.xml)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
+    {
+      "source": "/404.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/app.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/demo",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/whatsapp",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/pay/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/track/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/companion/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/companion",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/ops/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/ops",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
     {
       "source": "/assets/(.*)",
       "headers": [
@@ -68,5 +215,6 @@
   ],
   "regions": [
     "sin1"
-  ]
+  ],
+  "trailingSlash": false
 }

@@ -5,6 +5,7 @@ import { Link, navigate } from '../lib/router';
 import { useConfig, whatsappHref, telHref } from '../lib/config';
 import { Logo, Modal, cx } from './ui';
 import { track } from '../lib/analytics';
+import { LEGAL } from '../../shared/site';
 
 /** FR-EMR-001: emergency warning shown before booking starts. */
 export function EmergencyGate({ open, onClose, onContinue }: { open: boolean; onClose: () => void; onContinue: () => void }) {
@@ -125,7 +126,7 @@ export function PublicFooter() {
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-brand-300">Contact</p>
           <ul className="mt-3 space-y-2 text-sm">
-            <li><a className="hover:text-white" href={telHref(c)}>{c?.contact.support_phone_display}</a></li>
+            <li><a className="hover:text-white" href={telHref(c)} onClick={() => track('call_click', { page: location.pathname, place: 'footer' })}>{c?.contact.support_phone_display}</a></li>
             <li><a className="hover:text-white" href={`mailto:${c?.contact.support_email}`}>{c?.contact.support_email}</a></li>
             <li className="text-brand-300">{c?.contact.support_hours}</li>
             <li className="text-brand-300">Serving {c?.service_areas.map((a) => a.name).join(', ') || 'Gurugram'}</li>
@@ -140,12 +141,20 @@ export function PublicFooter() {
             <li><Link className="hover:text-white" to="/privacy">Privacy notice</Link></li>
             <li><Link className="hover:text-white" to="/terms">Terms of service</Link></li>
             <li><Link className="hover:text-white" to="/companion">Companion app</Link></li>
-            <li><Link className="hover:text-white" to="/ops">Operations login</Link></li>
             {c?.demo_mode && <li><Link className="hover:text-white" to="/demo">Demo guide</Link></li>}
           </ul>
         </div>
       </div>
-      <div className="border-t border-white/10 py-5 text-center text-xs text-brand-300">© {new Date().getFullYear()} ChampOnCall. All rights reserved.</div>
+      <div className="border-t border-white/10 px-4 py-5 text-center text-xs leading-relaxed text-brand-300">
+        <p>© {new Date().getFullYear()} ChampOnCall is a brand of <strong className="text-brand-100">{LEGAL.name}</strong>. All rights reserved.</p>
+        {(LEGAL.gstin || LEGAL.address) && (
+          <p className="mt-1">
+            {LEGAL.gstin && <>GSTIN {LEGAL.gstin}</>}
+            {LEGAL.gstin && LEGAL.address && ' · '}
+            {LEGAL.address && <>{LEGAL.address}</>}
+          </p>
+        )}
+      </div>
     </footer>
   );
 }

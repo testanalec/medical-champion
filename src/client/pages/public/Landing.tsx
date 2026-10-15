@@ -9,6 +9,7 @@ import { useConfig } from '../../lib/config';
 import { Link } from '../../lib/router';
 import { fmtINR } from '../../../shared/constants';
 import { cx } from '../../components/ui';
+import { withGst } from '../../../shared/site';
 
 const SERVICES: [React.ReactNode, string, string][] = [
   [<FaHospital />, 'Hospital accompaniment', 'From the front door to the ward and back.'],
@@ -39,7 +40,7 @@ const TIMELINE: [string, string, boolean?][] = [
   ['12:49', 'Reached Medanta'], ['13:10', 'Registration completed'], ['13:42', 'Consultation underway'], ['15:52', 'Returning home'], ['16:16', 'Mother is home safely', true],
 ];
 
-const FAQ: [string, string][] = [
+export const FAQ: [string, string][] = [
   ['Is this a medical or emergency service?', 'No. Our companions are trained, verified people who accompany and coordinate — they don’t diagnose, prescribe, give treatment or replace doctors, nurses, ambulances or emergency services. In an emergency, call 112 or 108 immediately.'],
   ['How quickly can someone reach my parent?', 'For urgent requests we aim to dispatch within minutes and reach within about an hour in most of Gurugram, depending on traffic and availability. Our team confirms a real ETA before you commit.'],
   ['Who are the companions?', 'Local, trained companions who have completed government ID verification, a background check, an interview and hospital navigation & escalation training before they can take any job.'],
@@ -211,7 +212,8 @@ export default function Landing() {
                 <span className="absolute -top-3 left-8 rounded-full bg-brand-700 px-3 py-1 text-xs font-bold text-white">Most visits</span>
                 <h3 className="font-bold">{general.name}</h3>
                 <p className="mt-1 text-sm text-slate-500">OPD, doctor visits, diagnostics, discharge, pharmacy</p>
-                <p className="mt-5 flex items-baseline gap-1"><span className="font-display text-5xl font-semibold text-brand-950">{fmtINR(general.base_fee)}</span></p>
+                <p className="mt-5 flex items-baseline gap-1"><span className="font-display text-5xl font-semibold text-brand-950">{fmtINR(general.base_fee)}</span>{Number(general.tax_percent) > 0 && <span className="text-sm text-slate-500">+ GST</span>}</p>
+                {Number(general.tax_percent) > 0 && <p className="mt-1 text-sm font-semibold text-brand-800" data-testid="price-incl-gst">{fmtINR(withGst(general.base_fee, general.tax_percent))} incl. {Number(general.tax_percent)}% GST</p>}
                 <p className="mt-1 text-sm text-slate-600">first {general.included_minutes / 60} hours · then {fmtINR(general.extension_rate_per_hour)}/hour</p>
                 <ul className="mt-6 space-y-2 text-sm text-slate-700">
                   {['Pickup from home & return', 'Registration, queues, consultation', 'Tests, reports & pharmacy', 'WhatsApp updates + visit summary'].map((t) => <li key={t} className="flex gap-2"><FiCheck className="mt-0.5 text-brand-600" />{t}</li>)}
@@ -223,7 +225,8 @@ export default function Landing() {
               <div key={p.id} className="rounded-3xl bg-white p-8 ring-1 ring-warm-200">
                 <h3 className="font-bold">{p.name}</h3>
                 <p className="mt-1 text-sm text-slate-500">Longer stays for hospital admission</p>
-                <p className="mt-5 font-display text-5xl font-semibold text-brand-950">{fmtINR(p.base_fee)}</p>
+                <p className="mt-5 flex items-baseline gap-1"><span className="font-display text-5xl font-semibold text-brand-950">{fmtINR(p.base_fee)}</span>{Number(p.tax_percent) > 0 && <span className="text-sm text-slate-500">+ GST</span>}</p>
+                {Number(p.tax_percent) > 0 && <p className="mt-1 text-sm font-semibold text-brand-800">{fmtINR(withGst(p.base_fee, p.tax_percent))} incl. {Number(p.tax_percent)}% GST</p>}
                 <p className="mt-1 text-sm text-slate-600">first {p.included_minutes / 60} hours · then {fmtINR(p.extension_rate_per_hour)}/hour</p>
                 <ul className="mt-6 space-y-2 text-sm text-slate-700">
                   {['Admission paperwork & insurance desk', 'Room allocation & settling in', 'Handover to ward staff', 'Updates to the whole family'].map((t) => <li key={t} className="flex gap-2"><FiCheck className="mt-0.5 text-brand-600" />{t}</li>)}
@@ -233,7 +236,7 @@ export default function Landing() {
             ))}
           </div>
           <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-slate-500">
-            {general && Number(general.tax_percent) > 0 ? `Prices exclude ${general.tax_percent}% GST. ` : ''}Cabs, parking and other approved out-of-pocket costs are billed at actuals with receipts. Hospital, doctor and medicine bills are paid directly to the provider.
+            {general && Number(general.tax_percent) > 0 ? `Extra hours are charged + ${Number(general.tax_percent)}% GST. ` : ''}Cabs, parking and other approved out-of-pocket costs are billed at actuals with receipts. Hospital, doctor and medicine bills are paid directly to the provider.
             Pay by UPI, cards or payment link.
           </p>
         </div>
@@ -290,13 +293,14 @@ export default function Landing() {
 
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
+  // <details> keeps every answer in the HTML, so search engines can read it (FAQ schema needs visible answers)
   return (
-    <div>
-      <button className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left font-semibold" onClick={() => setOpen(!open)} aria-expanded={open}>
+    <details onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-left font-semibold">
         {q}<FiChevronDown className={cx('shrink-0 transition', open && 'rotate-180')} />
-      </button>
-      {open && <p className="fade-up px-6 pb-5 text-sm leading-relaxed text-slate-600">{a}</p>}
-    </div>
+      </summary>
+      <p className="px-6 pb-5 text-sm leading-relaxed text-slate-600">{a}</p>
+    </details>
   );
 }
 

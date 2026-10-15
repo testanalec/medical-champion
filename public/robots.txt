@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /ops
+Disallow: /companion
+Disallow: /track/
+Disallow: /pay/
+Disallow: /whatsapp
+Disallow: /demo
+
+Sitemap: https://www.champoncall.com/sitemap.xml

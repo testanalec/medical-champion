@@ -46,6 +46,7 @@ export function Privacy() {
       <p>Each category of data has its own retention period (for example WhatsApp messages and location data are kept for a shorter time than payment records required by law). Data is securely deleted at the end of its period.</p>
       <h2>Website analytics</h2>
       <p>We use Google Analytics to understand how visitors use this website (for example which pages are viewed and whether a booking was made), so we can improve it. It uses cookies and does not receive your booking details, tracking links or medical information.</p>
+      <p>We may also use Microsoft Clarity to see, in aggregate, how visitors move through our pages (clicks and scrolling), so we can fix confusing parts of the site. Form fields are masked and it is never used on our operations or companion apps.</p>
       <h2>Your choices</h2>
       <p>You can ask to access, correct or delete your information by writing to {c?.contact.support_email}.</p>
     </Doc>

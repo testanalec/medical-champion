@@ -1,0 +1,32 @@
+{
+  "brand": { "name": "ChampOnCall", "tagline": "When you can't be there, we can.", "city": "Gurugram" },
+  "contact": {
+    "support_phone": "+919205640777",
+    "support_phone_display": "+91 92056 40777",
+    "whatsapp_number": "919205640777",
+    "whatsapp_prefill": "Hi, I need a companion for my parent's hospital visit.",
+    "support_email": "care@champoncall.com",
+    "support_hours": "7 AM – 11 PM, all days"
+  },
+  "emergency": { "primary_number": "112", "primary_label": "National Emergency Number", "ambulance_number": "108", "ambulance_label": "Ambulance" },
+  "service_types": [
+    { "id": "hospital_opd", "label": "Hospital / OPD" },
+    { "id": "diagnostic", "label": "Diagnostic Test" },
+    { "id": "admission", "label": "Hospital Admission Support" },
+    { "id": "discharge", "label": "Hospital Discharge" },
+    { "id": "doctor_appointment", "label": "Doctor Appointment" },
+    { "id": "pharmacy", "label": "Pharmacy / Reports Pickup" },
+    { "id": "not_sure", "label": "Not Sure / Speak to Us" }
+  ],
+  "pricing": [
+    { "id": "general", "name": "Medical Companion", "service_type": "*", "base_fee": "1499.00", "included_minutes": 240, "extension_rate_per_hour": "299.00", "tax_percent": "18.00", "urgent_surcharge": "0.00" },
+    { "id": "admission", "name": "Admission Support", "service_type": "admission", "base_fee": "1999.00", "included_minutes": 360, "extension_rate_per_hour": "299.00", "tax_percent": "18.00", "urgent_surcharge": "0.00" }
+  ],
+  "service_areas": [{ "name": "Gurugram", "city": "Gurugram" }],
+  "verification_claims": ["Government ID verified", "Background checked", "Trained in hospital navigation & escalation"],
+  "lists": { "languages": ["Hindi", "English", "Punjabi", "Haryanvi", "Bengali", "Tamil", "Telugu", "Marathi", "Urdu"] },
+  "demo_mode": false,
+  "analytics": { "ga_id": "G-8QVBSMK0HD", "clarity_id": null },
+  "demo_accounts": [],
+  "integrations": { "whatsapp": true, "razorpay": false, "sms": false, "email": false, "maps": true }
+}

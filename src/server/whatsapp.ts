@@ -8,6 +8,7 @@ import { getSetting, SERVICE_TYPES, serviceTypeLabel } from './settings';
 import { findPricingRule, quote } from './pricing';
 import { alertOps, requestVars } from './notifications';
 import { STATUS_LABEL, TERMINAL, URGENCY_LABEL, MOBILITY_LABEL, fmtINR, patientRef } from '../shared/constants';
+import { withGst } from '../shared/site';
 
 type Input =
   | { kind: 'reply'; id: string; title: string }
@@ -437,7 +438,7 @@ class Bot {
       `🚶 Mobility: ${MOBILITY_LABEL[d.mobility]}`,
       d.special ? `📝 Notes: ${d.special}` : '',
       '',
-      q && rule ? `💰 ${fmtINR(Number(rule.base_fee))} for the first ${rule.included_minutes / 60} hours, then ${fmtINR(Number(rule.extension_rate_per_hour))}/hour${Number(rule.tax_percent) ? ` + ${rule.tax_percent}% GST` : ''}. Pay after the service.` : '',
+      q && rule ? `💰 ${fmtINR(Number(rule.base_fee))} for the first ${rule.included_minutes / 60} hours, then ${fmtINR(Number(rule.extension_rate_per_hour))}/hour${Number(rule.tax_percent) ? ` + ${Number(rule.tax_percent)}% GST (${fmtINR(withGst(rule.base_fee, rule.tax_percent))} incl. GST for the first ${rule.included_minutes / 60} hours)` : ''}. Pay after the service.` : '',
       '',
       `⚠️ Not an emergency or ambulance service. For emergencies call ${e.primary_number}.`,
     ].filter((l, i, arr) => l !== '' || arr[i - 1] !== '');

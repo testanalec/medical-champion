@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FiCheckCircle, FiMapPin, FiNavigation, FiAlertTriangle, FiArrowRight } from 'react-icons/fi';
 import { PublicShell, EmergencyGate } from '../../components/public';
 import { get, post, uid } from '../../lib/api';
-import { useConfig, getUtm } from '../../lib/config';
+import { useConfig, getUtm, whatsappHref } from '../../lib/config';
+import { withGst } from '../../../shared/site';
 import { Link } from '../../lib/router';
 import { Button, Field, Input, Textarea, cx, useToast, fromLocalInput, toLocalInput } from '../../components/ui';
 import { fmtINR, RELATIONSHIPS } from '../../../shared/constants';
@@ -105,7 +106,7 @@ export default function Book() {
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <p className="kicker">Book online</p>
         <h1 className="mt-2 font-display text-3xl font-semibold text-brand-950">Request a companion</h1>
-        <p className="mt-2 text-slate-600">Prefer chatting? <Link to="/whatsapp" className="font-semibold text-brand-700 underline">Book on WhatsApp</Link> or <a href={`tel:${c?.contact.support_phone}`} className="font-semibold text-brand-700 underline">call us</a>.</p>
+        <p className="mt-2 text-slate-600">Prefer chatting? <a href={whatsappHref(c)} target="_blank" rel="noopener" onClick={() => track('whatsapp_click', { page: '/book', place: 'book_intro' })} className="font-semibold text-brand-700 underline">Book on WhatsApp</a> or <a href={`tel:${c?.contact.support_phone}`} onClick={() => track('call_click', { page: '/book', place: 'book_intro' })} className="font-semibold text-brand-700 underline">call us</a>.</p>
         <form onSubmit={submit} className="mt-8 space-y-5">
           <section className="card space-y-4 p-5 sm:p-6">
             <h2 className="font-bold">1. Who needs assistance?</h2>
@@ -162,7 +163,7 @@ export default function Book() {
           </section>
 
           <div className="card flex flex-wrap items-center justify-between gap-4 p-5">
-            {rule && <div><p className="text-xs text-slate-500">Estimated</p><p className="text-lg font-bold">{fmtINR(rule.base_fee)} <span className="text-sm font-normal text-slate-500">first {rule.included_minutes / 60} h · then {fmtINR(rule.extension_rate_per_hour)}/h{Number(rule.tax_percent) ? ` + ${rule.tax_percent}% GST` : ''}</span></p><p className="text-xs text-slate-500">Pay after the service</p></div>}
+            {rule && <div><p className="text-xs text-slate-500">Estimated</p><p className="text-lg font-bold">{fmtINR(rule.base_fee)} <span className="text-sm font-normal text-slate-500">first {rule.included_minutes / 60} h · then {fmtINR(rule.extension_rate_per_hour)}/h{Number(rule.tax_percent) ? ` + ${Number(rule.tax_percent)}% GST` : ''}</span></p>{Number(rule.tax_percent) > 0 && <p className="text-sm font-semibold text-brand-800">{fmtINR(withGst(rule.base_fee, rule.tax_percent))} incl. GST for the first {rule.included_minutes / 60} h</p>}<p className="text-xs text-slate-500">Pay after the service</p></div>}
             <Button className="btn-primary btn-lg" loading={busy} data-testid="book-submit">Confirm request</Button>
           </div>
         </form>

@@ -34,7 +34,13 @@ http.createServer(async (req, res) => {
   }
   let file = path.join(root, 'public', decodeURIComponent(url.pathname));
   if (!file.startsWith(path.join(root, 'public'))) { res.writeHead(403); return res.end(); }
-  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, 'public/index.html');
-  res.writeHead(200, { 'content-type': types[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' });
+  // Mirror vercel.json: public pages are static .html files, app routes use the app shell, anything else is a 404
+  let status = 200;
+  const p = url.pathname.replace(/\/$/, '') || '/';
+  if (p === '/') file = path.join(root, 'public/index.html');
+  else if (fs.existsSync(path.join(root, 'public', p + '.html')) && !['/app', '/404'].includes(p)) file = path.join(root, 'public', p + '.html');
+  else if (/^\/(ops|companion)(\/|$)|^\/(track|pay)\/[^/]+$|^\/(whatsapp|demo)$/.test(p)) file = path.join(root, 'public/app.html');
+  else if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) { file = path.join(root, 'public/404.html'); status = 404; }
+  res.writeHead(status, { 'content-type': types[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' });
   fs.createReadStream(file).pipe(res);
 }).listen(port, () => console.log(`ChampOnCall running on http://localhost:${port}`));

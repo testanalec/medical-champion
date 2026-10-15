@@ -84,6 +84,7 @@ step(`assigned to Amit, booking code ${bookingCode}`);
 // ---------- 8-17 companion
 const cmp = await ctx({ width: 390, height: 844 });
 await cmp.goto(BASE + '/companion');
+await cmp.getByTestId('cmp-use-otp').click();
 await cmp.getByTestId('cmp-phone').fill('7000000101');
 await cmp.getByTestId('cmp-send-otp').click();
 const otp = (await cmp.getByTestId('cmp-demo-otp').innerText()).trim();
@@ -136,8 +137,10 @@ step('companion completed the job');
 await waitFor('Service Completed');
 await waitFor('Reached Hospital');
 await shot(cust, 'e2e_09_whatsapp_updates');
-const payLink = await cust.getByTestId('sim-messages').getByRole('link', { name: 'Pay Now' }).last().getAttribute('href');
-await cust.goto(payLink.startsWith('http') ? payLink : BASE + payLink);
+// WhatsApp messages no longer carry a Pay Now button; pay from the tracking page (sandbox link shows in demo mode)
+const trackLink = await cust.getByTestId('sim-messages').locator('a[href*="/track/"]').last().getAttribute('href');
+await cust.goto(trackLink.startsWith('http') ? trackLink.replace(/^https?:\/\/[^/]+/, BASE) : BASE + trackLink);
+await cust.getByTestId('pay-now').click();
 await cust.getByTestId('pay-submit').click();
 await cust.getByTestId('pay-success').waitFor();
 await shot(cust, 'e2e_10_paid');
