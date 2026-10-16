@@ -22,6 +22,7 @@ function initClarity(id: string | null | undefined) {
 
 export function initAnalytics(id: string | null | undefined, clarityId?: string | null) {
   initClarity(clarityId);
+  if (!isInternal()) watchPhoneLinks();
   if (started || !id || isInternal()) return;
   started = true;
   window.dataLayer = window.dataLayer || [];
@@ -38,6 +39,21 @@ export function initAnalytics(id: string | null | undefined, clarityId?: string 
   pageView();
   window.addEventListener('mc:navigate', pageView);
   window.addEventListener('popstate', pageView);
+}
+
+let linksWatched = false;
+/** One listener for every phone link on the public site: support numbers → call_click, 112/108 → emergency_call_click. */
+function watchPhoneLinks() {
+  if (linksWatched) return;
+  linksWatched = true;
+  document.addEventListener('click', (e) => {
+    const a = (e.target as Element | null)?.closest?.('a[href^="tel:"]') as HTMLAnchorElement | null;
+    if (!a) return;
+    const num = a.getAttribute('href')!.slice(4).replace(/[^\d+]/g, '');
+    const emergency = num.length <= 4;
+    const place = a.closest('footer') ? 'footer' : a.closest('header') ? 'header' : a.closest('.fixed') ? 'mobile_bar' : 'page';
+    track(emergency ? 'emergency_call_click' : 'call_click', { page: location.pathname, place, ...(emergency ? { number: num } : {}) });
+  }, { capture: true });
 }
 
 function pageView() {

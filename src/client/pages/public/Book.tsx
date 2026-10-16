@@ -75,6 +75,7 @@ export default function Book() {
         requested_at: f.urgency === 'SCHEDULED' ? fromLocalInput(f.requested_at) : null, utm: getUtm(), idempotency_key: key,
       });
       setDone(r);
+      track('book_form_submit', { service_type: f.service_type, urgency: f.urgency });
       track('generate_lead', { service_type: f.service_type, urgency: f.urgency, channel: 'website' });
       window.scrollTo({ top: 0 });
     } catch (er: any) { toast('error', er.message); } finally { setBusy(false); }
@@ -106,7 +107,7 @@ export default function Book() {
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <p className="kicker">Book online</p>
         <h1 className="mt-2 font-display text-3xl font-semibold text-brand-950">Request a companion</h1>
-        <p className="mt-2 text-slate-600">Prefer chatting? <a href={whatsappHref(c)} target="_blank" rel="noopener" onClick={() => track('whatsapp_click', { page: '/book', place: 'book_intro' })} className="font-semibold text-brand-700 underline">Book on WhatsApp</a> or <a href={`tel:${c?.contact.support_phone}`} onClick={() => track('call_click', { page: '/book', place: 'book_intro' })} className="font-semibold text-brand-700 underline">call us</a>.</p>
+        <p className="mt-2 text-slate-600">Prefer chatting? <a href={whatsappHref(c)} target="_blank" rel="noopener" onClick={() => track('whatsapp_click', { page: '/book', place: 'book_intro' })} className="font-semibold text-brand-700 underline">Book on WhatsApp</a> or <a href={`tel:${c?.contact.support_phone}`} className="font-semibold text-brand-700 underline">call us</a>.</p>
         <form onSubmit={submit} className="mt-8 space-y-5">
           <section className="card space-y-4 p-5 sm:p-6">
             <h2 className="font-bold">1. Who needs assistance?</h2>

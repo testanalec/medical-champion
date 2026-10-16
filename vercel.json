@@ -19,6 +19,18 @@
       "destination": "/book.html"
     },
     {
+      "source": "/for-nri-families",
+      "destination": "/for-nri-families.html"
+    },
+    {
+      "source": "/hospital-discharge-assistance-gurugram",
+      "destination": "/hospital-discharge-assistance-gurugram.html"
+    },
+    {
+      "source": "/opd-visit-companion-gurugram",
+      "destination": "/opd-visit-companion-gurugram.html"
+    },
+    {
       "source": "/safety",
       "destination": "/safety.html"
     },

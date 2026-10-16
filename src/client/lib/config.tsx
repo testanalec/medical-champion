@@ -32,7 +32,7 @@ export const useConfig = () => useContext(Ctx).config;
 export const useConfigReload = () => useContext(Ctx).reload;
 
 // ---- campaign attribution (FR-WEB-002)
-const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid', 'ref'];
+const UTM_KEYS = ['src', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid', 'ref'];
 export function captureUtm() {
   try {
     const q = new URLSearchParams(location.search);
@@ -45,10 +45,17 @@ export function getUtm(): Record<string, string> {
   try { return JSON.parse(sessionStorage.getItem('mc_utm') || '{}'); } catch { return {}; }
 }
 
+/** Lead source tag added to the WhatsApp text, e.g. [WEB] or [GADS] from champoncall.com/?src=GADS. */
+export function sourceTag(): string {
+  const raw = String(getUtm().src || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16);
+  return raw.length >= 2 ? raw : 'WEB';
+}
+
 export function whatsappHref(c: PublicConfig | null) {
   const utm = getUtm();
   if (c?.contact.whatsapp_number) {
-    return `https://wa.me/${c.contact.whatsapp_number.replace(/[^\d]/g, '')}?text=${encodeURIComponent(c.contact.whatsapp_prefill || 'Hi')}`;
+    const text = `${(c.contact.whatsapp_prefill || 'Hi').trim()} [${sourceTag()}]`;
+    return `https://wa.me/${c.contact.whatsapp_number.replace(/[^\d]/g, '')}?text=${encodeURIComponent(text)}`;
   }
   const qs = new URLSearchParams(utm as any).toString();
   return `/whatsapp${qs ? '?' + qs : ''}`;

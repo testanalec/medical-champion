@@ -95,7 +95,7 @@ export default function WhatsAppDemo() {
           <div className="mx-auto flex h-[min(760px,calc(100dvh-7rem))] max-w-[400px] flex-col overflow-hidden rounded-[2.2rem] border-[9px] border-slate-900 bg-slate-900 shadow-lift">
             <div className="flex items-center gap-3 bg-[#075e54] px-3 py-3 text-white">
               <FiArrowLeft className="opacity-70" />
-              <img src="/icon.svg" alt="" className="h-9 w-9 rounded-full bg-white" />
+              <img src="/icon.svg" alt="ChampOnCall" className="h-9 w-9 rounded-full bg-white" />
               <div className="min-w-0 flex-1 leading-tight">
                 <p className="truncate text-sm font-semibold">{c?.brand.name || 'ChampOnCall'}</p>
                 <p className="text-[11px] text-emerald-100">{sending ? 'typing…' : 'Business account · usually replies instantly'}</p>

@@ -107,7 +107,7 @@ async function prerender(v) {
     const file = p.path === '/' ? 'index.html' : `${p.path.slice(1)}.html`;
     write(file, page({
       title: p.title, description: p.description, canonical: pre.SITE_URL + p.path, robots: 'index,follow',
-      schema: p.path === '/' ? pre.homeSchema(config) : [], body: pre.renderPage(p.path, config),
+      schema: pre.schemaFor(p.path, config), body: pre.renderPage(p.path, config),
     }));
   }
   // App shell for Ops, the Champ app, tracking and payment links — never indexed

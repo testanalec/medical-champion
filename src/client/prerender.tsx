@@ -6,6 +6,7 @@ import { ConfigProvider, PublicConfig } from './lib/config';
 import { ToastProvider } from './components/ui';
 import App from './App';
 import { FAQ } from './pages/public/Landing';
+import { SERVICE_PAGES } from './pages/public/serviceContent';
 import { SITE_URL, OG_IMAGE, LEGAL, HOURS, withGst } from '../shared/site';
 
 export function renderPage(path: string, config: PublicConfig): string {
@@ -83,6 +84,47 @@ export function homeSchema(c: PublicConfig): object[] {
     mainEntity: FAQ.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
   };
   return [business, service, faq];
+}
+
+const faqSchema = (items: [string, string][]) => ({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: items.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+});
+
+/** Schema for any public page: home gets LocalBusiness + Service + FAQPage; service pages get Service + FAQPage + breadcrumbs. */
+export function schemaFor(path: string, c: PublicConfig): object[] {
+  if (path === '/') return homeSchema(c);
+  const sp = SERVICE_PAGES.find((p) => p.path === path);
+  if (!sp) return [];
+  const general: any = c.pricing.find((p: any) => p.service_type === '*') || c.pricing[0];
+  const city = { '@type': 'City', name: c.brand.city || 'Gurugram' };
+  return [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'Service',
+      name: sp.serviceName,
+      serviceType: sp.serviceType,
+      description: sp.serviceDescription,
+      url: SITE_URL + sp.path,
+      provider: { '@type': 'LocalBusiness', '@id': `${SITE_URL}/#business`, name: c.brand.name, url: SITE_URL + '/', telephone: c.contact.support_phone },
+      areaServed: city,
+      ...(general ? { offers: {
+        '@type': 'Offer', priceCurrency: 'INR', price: withGst(general.base_fee, general.tax_percent),
+        priceSpecification: { '@type': 'UnitPriceSpecification', price: withGst(general.base_fee, general.tax_percent), priceCurrency: 'INR', valueAddedTaxIncluded: true },
+        description: `₹${Number(general.base_fee).toLocaleString('en-IN')} + ${Number(general.tax_percent)}% GST for the first ${general.included_minutes / 60} hours`,
+      } } : {}),
+    },
+    faqSchema(sp.faq),
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+        { '@type': 'ListItem', position: 2, name: sp.serviceName, item: SITE_URL + sp.path },
+      ],
+    },
+  ];
 }
 
 export { PUBLIC_PAGES, SITE_URL, OG_IMAGE, NOT_FOUND_META } from '../shared/site';

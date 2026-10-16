@@ -96,7 +96,7 @@ export default function RequestDetail({ id }: { id: string }) {
               ['Zone', d.zone || <span className="text-violet-700">Outside / unverified</span>],
               ['Special instructions', d.special_instructions || '—'],
               ['Booking code (verification)', <span key="bc" className="font-mono text-base font-bold tracking-widest" data-testid="booking-code">{d.booking_code}</span>],
-              ['Source', `${d.source || d.channel}${d.utm && Object.keys(d.utm).length ? ' · ' + Object.entries(d.utm).filter(([k]) => k.startsWith('utm') || k === 'gclid').map(([k, v]) => `${k}=${v}`).join(' ') : ''}`],
+              ['Source', `${d.source || d.channel}${d.utm && Object.keys(d.utm).length ? ' · ' + Object.entries(d.utm).filter(([k]) => k.startsWith('utm') || k === 'gclid' || k === 'src').map(([k, v]) => `${k}=${v}`).join(' ') : ''}`],
             ]} />
           </Section>
 

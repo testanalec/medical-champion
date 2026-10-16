@@ -10,6 +10,8 @@ import { Privacy, Terms, Safety, DemoGuide, NotFound } from './pages/public/Info
 import OpsApp from './pages/ops/OpsApp';
 import CompanionApp from './pages/companion/CompanionApp';
 import { metaFor, SITE_URL, NOT_FOUND_META } from '../shared/site';
+import ServicePage from './pages/public/ServicePage';
+import { servicePageFor } from './pages/public/serviceContent';
 
 /** Keeps <title>, description, canonical and robots in step with in-app navigation. */
 function useSeo(path: string, known: boolean) {
@@ -52,6 +54,8 @@ export function routeElement(path: string): [React.ReactElement, boolean] {
   if (path === '/terms') return [<Terms />, true];
   if (path === '/safety') return [<Safety />, true];
   if (path === '/demo') return [<DemoGuide />, true];
+  const sp = servicePageFor(path.replace(/\/$/, ''));
+  if (sp) return [<ServicePage key={sp.path} page={sp} />, true];
   return [<NotFound />, false];
 }
 

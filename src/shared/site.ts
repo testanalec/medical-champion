@@ -35,6 +35,24 @@ export const PUBLIC_PAGES: PageMeta[] = [
     priority: 0.8,
   },
   {
+    path: '/opd-visit-companion-gurugram',
+    title: 'OPD Visit Companion for Elderly Parents in Gurugram | ChampOnCall',
+    description: 'A verified companion takes your parent to their OPD appointment in Gurugram — pickup, registration, consultation, tests, pharmacy and home — with WhatsApp updates. ₹1,499 + GST.',
+    priority: 0.9,
+  },
+  {
+    path: '/hospital-discharge-assistance-gurugram',
+    title: 'Hospital Discharge Assistance in Gurugram | ChampOnCall',
+    description: 'Discharge summary, billing and insurance desk, medicines, wheelchair and cab home — a verified companion stays with your parent through discharge day in Gurugram.',
+    priority: 0.9,
+  },
+  {
+    path: '/for-nri-families',
+    title: 'Hospital Companion for Parents of NRIs in Gurugram | ChampOnCall',
+    description: 'Living abroad? A verified ChampOnCall companion takes your parent in Gurugram to hospital, OPD or tests and keeps you updated on WhatsApp. Book from any country.',
+    priority: 0.9,
+  },
+  {
     path: '/safety',
     title: 'Safety & medical boundary | ChampOnCall',
     description: 'How ChampOnCall verifies and trains companions, what they do and do not do, and how our operations team handles emergencies.',

@@ -297,7 +297,7 @@ export function useAction() {
 export function Logo({ light, compact }: { light?: boolean; compact?: boolean }) {
   return (
     <span className="inline-flex items-center" style={{ gap: 12 }}>
-      <img src="/logo-mark.svg" alt="" width={48} height={48} style={{ width: 48, height: 48, borderRadius: 9999, boxShadow: '0 2px 8px rgb(19 33 60 / 0.18)' }} />
+      <img src="/logo-mark.svg" alt="ChampOnCall" width={48} height={48} style={{ width: 48, height: 48, borderRadius: 9999, boxShadow: '0 2px 8px rgb(19 33 60 / 0.18)' }} />
       {!compact && (
         <span className="whitespace-nowrap leading-none">
           <span className="block font-display font-bold tracking-tight" style={{ fontSize: 24, lineHeight: 1 }}>

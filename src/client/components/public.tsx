@@ -18,7 +18,7 @@ export function EmergencyGate({ open, onClose, onContinue }: { open: boolean; on
       </p>
       <p className="mt-3 text-sm text-slate-500">Our companions are not doctors, nurses, paramedics or an ambulance service.</p>
       <div className="mt-5 grid gap-3">
-        <a href={`tel:${c?.emergency.primary_number || '112'}`} onClick={() => track('emergency_call_click')} className="btn btn-danger btn-lg w-full">
+        <a href={`tel:${c?.emergency.primary_number || '112'}`} className="btn btn-danger btn-lg w-full">
           <FiPhone /> CALL EMERGENCY SERVICE ({c?.emergency.primary_number || '112'})
         </a>
         <a href={`tel:${c?.emergency.ambulance_number || '108'}`} className="btn btn-secondary w-full text-red-700">
@@ -61,7 +61,7 @@ export function WhatsAppCTA({ className, label = 'GET HELP NOW ON WHATSAPP', siz
 export function CallCTA({ className, size = 'lg', label = 'CALL US' }: { className?: string; size?: 'lg' | 'md' | 'sm'; label?: string }) {
   const c = useConfig();
   return (
-    <a href={telHref(c)} onClick={() => track('call_click', { page: location.pathname })} className={cx('btn btn-secondary', size === 'lg' && 'btn-lg', size === 'sm' && 'btn-sm', className)}>
+    <a href={telHref(c)} className={cx('btn btn-secondary', size === 'lg' && 'btn-lg', size === 'sm' && 'btn-sm', className)}>
       <FiPhone /> {label}
     </a>
   );
@@ -126,7 +126,7 @@ export function PublicFooter() {
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-brand-300">Contact</p>
           <ul className="mt-3 space-y-2 text-sm">
-            <li><a className="hover:text-white" href={telHref(c)} onClick={() => track('call_click', { page: location.pathname, place: 'footer' })}>{c?.contact.support_phone_display}</a></li>
+            <li><a className="hover:text-white" href={telHref(c)}>{c?.contact.support_phone_display}</a></li>
             <li><a className="hover:text-white" href={`mailto:${c?.contact.support_email}`}>{c?.contact.support_email}</a></li>
             <li className="text-brand-300">{c?.contact.support_hours}</li>
             <li className="text-brand-300">Serving {c?.service_areas.map((a) => a.name).join(', ') || 'Gurugram'}</li>
@@ -135,6 +135,9 @@ export function PublicFooter() {
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-brand-300">Company</p>
           <ul className="mt-3 space-y-2 text-sm">
+            <li><Link className="hover:text-white" to="/opd-visit-companion-gurugram">OPD visit companion</Link></li>
+            <li><Link className="hover:text-white" to="/hospital-discharge-assistance-gurugram">Discharge assistance</Link></li>
+            <li><Link className="hover:text-white" to="/for-nri-families">For NRI families</Link></li>
             <li><Link className="hover:text-white" to="/track-lookup">Track a request</Link></li>
             <li><Link className="hover:text-white" to="/book">Book online</Link></li>
             <li><Link className="hover:text-white" to="/safety">Safety & medical boundary</Link></li>
@@ -146,12 +149,10 @@ export function PublicFooter() {
         </div>
       </div>
       <div className="border-t border-white/10 px-4 py-5 text-center text-xs leading-relaxed text-brand-300">
-        <p>© {new Date().getFullYear()} ChampOnCall is a brand of <strong className="text-brand-100">{LEGAL.name}</strong>. All rights reserved.</p>
-        {(LEGAL.gstin || LEGAL.address) && (
+        <p>© {new Date().getFullYear()} ChampOnCall is a brand of <strong className="text-brand-100">{LEGAL.name}</strong> · {LEGAL.address || `${LEGAL.locality}, ${LEGAL.region}`}. All rights reserved.</p>
+        {LEGAL.gstin && (
           <p className="mt-1">
-            {LEGAL.gstin && <>GSTIN {LEGAL.gstin}</>}
-            {LEGAL.gstin && LEGAL.address && ' · '}
-            {LEGAL.address && <>{LEGAL.address}</>}
+            GSTIN {LEGAL.gstin}
           </p>
         )}
       </div>

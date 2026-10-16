@@ -136,6 +136,9 @@ export default function Landing() {
               </div>
             ))}
           </div>
+          <p className="mt-8 text-sm text-slate-600">
+            Learn more: <Link to="/opd-visit-companion-gurugram" className="font-semibold text-brand-700 underline">OPD visit companion</Link> · <Link to="/hospital-discharge-assistance-gurugram" className="font-semibold text-brand-700 underline">Hospital discharge assistance</Link> · <Link to="/for-nri-families" className="font-semibold text-brand-700 underline">For NRI families</Link>
+          </p>
         </div>
       </section>
 
@@ -291,7 +294,7 @@ export default function Landing() {
   );
 }
 
-function FaqItem({ q, a }: { q: string; a: string }) {
+export function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   // <details> keeps every answer in the HTML, so search engines can read it (FAQ schema needs visible answers)
   return (
@@ -317,7 +320,7 @@ function PhoneMock() {
       <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-tr from-coral-400/20 via-brand-200/40 to-transparent blur-2xl" />
       <div className="overflow-hidden rounded-[2.4rem] border-[10px] border-slate-900 bg-slate-900 shadow-lift">
         <div className="flex items-center gap-3 bg-[#075e54] px-4 pb-3 pt-4 text-white">
-          <img src="/icon.svg" alt="" className="h-9 w-9 rounded-full" />
+          <img src="/icon.svg" alt="ChampOnCall" className="h-9 w-9 rounded-full" />
           <div className="leading-tight"><p className="text-sm font-semibold">ChampOnCall</p><p className="text-[11px] text-emerald-100">Business account</p></div>
         </div>
         <div className="wa-bg space-y-2 px-3 py-4" style={{ minHeight: 400 }}>

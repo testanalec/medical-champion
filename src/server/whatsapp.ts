@@ -103,6 +103,10 @@ async function handleInbound(m: any, profileName: string | null, source: string,
     const conv = (await tx`SELECT * FROM wa_conversations WHERE id = ${conv0.id}`)[0];
     const bot = new Bot(conv, phone, cust, profileName);
     await bot.handle(input);
+    // The lead source tag survives the draft resets in the flow until the request is created
+    const prevSrc = conv.draft?.src;
+    if (bot.srcTag) bot.draft = { ...bot.draft, src: bot.srcTag };
+    else if (prevSrc && !bot.draft.src && bot.step !== 'ACTIVE') bot.draft = { ...bot.draft, src: prevSrc };
     await tx`UPDATE wa_conversations SET current_step = ${bot.step}, draft = ${tx.json(bot.draft)}, active_request_id = ${bot.activeRequestId},
              updated_at = now() WHERE id = ${conv.id}`;
     return { step: bot.step };
@@ -114,6 +118,7 @@ class Bot {
   step: string;
   draft: any;
   activeRequestId: string | null;
+  srcTag: string | null = null;
   constructor(public conv: any, public phone: string, public customer: any, public profileName: string | null) {
     this.step = conv.current_step || 'START';
     this.draft = conv.draft || {};
@@ -147,6 +152,14 @@ class Bot {
   }
 
   async handle(input: Input) {
+    // Website/ad links end the first message with a source tag, e.g. "... hospital visit. [WEB]" or "[GADS]"
+    if (input.kind === 'text') {
+      const m = /\s*\[([A-Za-z0-9_-]{2,16})\]\s*$/.exec(input.text);
+      if (m) {
+        this.srcTag = m[1].toUpperCase();
+        input = { ...input, text: input.text.slice(0, m.index).trim() || 'hi' };
+      }
+    }
     const text = input.kind === 'text' ? input.text : '';
     const id = input.kind === 'reply' ? input.id : '';
     const low = text.toLowerCase();
@@ -451,7 +464,7 @@ class Bot {
   async createRequest() {
     const d = this.draft;
     if (!d.pickup || !d.service_type || !d.urgency || !d.mobility) return this.welcome();
-    const utm = (this.conv.draft?.utm || {}) as any;
+    const utm = { ...(this.conv.draft?.utm || {}), ...(d.src ? { src: d.src } : {}) } as any;
     const { request } = await createServiceRequest(
       {
         channel: 'whatsapp',

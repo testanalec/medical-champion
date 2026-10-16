@@ -6,6 +6,7 @@ import { useApi, post } from '../../lib/api';
 import { useRoute, navigate, Link } from '../../lib/router';
 import { Avatar, Badge, Button, ErrorState, Field, Input, PageLoader, Textarea, cx, fmtDateTime, fmtTime, useToast, PayBadge } from '../../components/ui';
 import { fmtINR, fmtDuration, URGENCY_LABEL } from '../../../shared/constants';
+import { track } from '../../lib/analytics';
 
 const STAGES: [string, string[]][] = [
   ['Received', ['NEW', 'AWAITING_CONFIRMATION']],
@@ -234,8 +235,9 @@ export function TrackLookup() {
             setBusy(true);
             try {
               const r = await post('/api/v1/public/track-lookup', { request_number: rn, phone });
+              track('track_lookup', { result: 'found' });
               navigate(r.track_url);
-            } catch (er: any) { toast('error', er.message); } finally { setBusy(false); }
+            } catch (er: any) { track('track_lookup', { result: 'not_found' }); toast('error', er.message); } finally { setBusy(false); }
           }}>
             <Field label="Request ID"><Input value={rn} onChange={(e) => setRn(e.target.value.toUpperCase())} placeholder="MC-10452" required /></Field>
             <Field label="Mobile number"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="98765 43210" inputMode="tel" required /></Field>
