@@ -92,7 +92,7 @@ export const DEFAULT_SETTINGS: Record<string, any> = {
   },
   analytics: {
     ga_measurement_id: '',
-    clarity_project_id: '',
+    clarity_project_id: 'z09b64i1di',
   },
   email: {
     ops_emails: 'care@champoncall.com',

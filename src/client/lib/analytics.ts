@@ -8,10 +8,22 @@ let started = false;
 const isInternal = () => location.pathname.startsWith('/ops') || location.pathname.startsWith('/companion');
 
 let clarityStarted = false;
-/** Microsoft Clarity (heatmaps & session recordings) — public pages only, never Ops or the Champ app. */
+// Pages that show a booking's private details are never recorded (Clarity runs with Strict masking elsewhere)
+const isPrivatePage = () => /^\/(track|pay)\//.test(location.pathname);
+let clarityPaused = false;
+function syncClarity() {
+  const w = window as any;
+  if (!clarityStarted || !w.clarity) return;
+  const shouldPause = isPrivatePage() || isInternal();
+  if (shouldPause && !clarityPaused) { w.clarity('stop'); clarityPaused = true; }
+  else if (!shouldPause && clarityPaused) { w.clarity('start'); clarityPaused = false; }
+}
+/** Microsoft Clarity (heatmaps & session recordings) — public marketing pages only, never Ops, the Champ app, tracking or payment pages. */
 function initClarity(id: string | null | undefined) {
-  if (clarityStarted || !id || !/^[a-z0-9]{6,20}$/i.test(id) || isInternal()) return;
+  if (clarityStarted || !id || !/^[a-z0-9]{6,20}$/i.test(id) || isInternal() || isPrivatePage()) return;
   clarityStarted = true;
+  window.addEventListener('mc:navigate', syncClarity);
+  window.addEventListener('popstate', syncClarity);
   const w = window as any;
   w.clarity = w.clarity || function () { (w.clarity.q = w.clarity.q || []).push(arguments); };
   const s = document.createElement('script');

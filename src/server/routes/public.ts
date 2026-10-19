@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { sql } from '../db';
 import { Router, Ctx, bad, notFound, rateLimit, str, num, normalizePhone, cookie, HttpError, conflict } from '../http';
-import { getAllSettings, getSetting, SERVICE_TYPES, integrationStatus, serviceTypeLabel } from '../settings';
+import { getAllSettings, getSetting, SERVICE_TYPES, integrationStatus, serviceTypeLabel, DEFAULT_SETTINGS } from '../settings';
 import { searchGazetteer, geocode, checkServiceArea } from '../geo';
 import { findPricingRule, quote } from '../pricing';
 import { createServiceRequest } from '../lifecycle';
@@ -34,7 +34,7 @@ export function registerPublic(r: Router) {
       lists: { languages: s.lists.languages }, demo_mode: !!s.security.demo_mode,
       analytics: {
         ga_id: (String(s.analytics?.ga_measurement_id || process.env.GA_MEASUREMENT_ID || '').trim().match(/^G-[A-Z0-9]+$/i) || [null])[0],
-        clarity_id: (String(s.analytics?.clarity_project_id || process.env.CLARITY_PROJECT_ID || '').trim().match(/^[a-z0-9]{6,20}$/i) || [null])[0],
+        clarity_id: (String(s.analytics?.clarity_project_id || process.env.CLARITY_PROJECT_ID || DEFAULT_SETTINGS.analytics.clarity_project_id || '').trim().match(/^[a-z0-9]{6,20}$/i) || [null])[0],
       },
       // Demo sign-in shortcuts are only published while demo mode is on
       demo_accounts: s.security.demo_mode ? DEMO_USERS.map((u) => [u.email.split('@')[0].replace(/^./, (c) => c.toUpperCase()), u.email, u.password]) : [],
