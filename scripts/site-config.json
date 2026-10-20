@@ -19,8 +19,8 @@
     { "id": "not_sure", "label": "Not Sure / Speak to Us" }
   ],
   "pricing": [
-    { "id": "general", "name": "Medical Companion", "service_type": "*", "base_fee": "1499.00", "included_minutes": 240, "extension_rate_per_hour": "299.00", "tax_percent": "18.00", "urgent_surcharge": "0.00" },
-    { "id": "admission", "name": "Admission Support", "service_type": "admission", "base_fee": "1999.00", "included_minutes": 360, "extension_rate_per_hour": "299.00", "tax_percent": "18.00", "urgent_surcharge": "0.00" }
+    { "id": "general", "name": "Medical Companion", "service_type": "*", "base_fee": "1499.00", "included_minutes": 240, "extension_rate_per_hour": "299.00", "tax_percent": "0.00", "urgent_surcharge": "0.00" },
+    { "id": "admission", "name": "Admission Support", "service_type": "admission", "base_fee": "1999.00", "included_minutes": 360, "extension_rate_per_hour": "299.00", "tax_percent": "0.00", "urgent_surcharge": "0.00" }
   ],
   "service_areas": [{ "name": "Gurugram", "city": "Gurugram" }],
   "verification_claims": ["Government ID verified", "Background checked", "Trained in hospital navigation & escalation"],

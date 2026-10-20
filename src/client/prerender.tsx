@@ -62,8 +62,8 @@ export function homeSchema(c: PublicConfig): object[] {
     name: p.name,
     price: withGst(p.base_fee, p.tax_percent),
     priceCurrency: 'INR',
-    description: `${p.name}: ₹${Number(p.base_fee).toLocaleString('en-IN')} + ${p.tax_percent}% GST for the first ${p.included_minutes / 60} hours, then ₹${Number(p.extension_rate_per_hour).toLocaleString('en-IN')}/hour + GST.`,
-    priceSpecification: { '@type': 'UnitPriceSpecification', price: withGst(p.base_fee, p.tax_percent), priceCurrency: 'INR', valueAddedTaxIncluded: true },
+    description: `${p.name}: ₹${Number(p.base_fee).toLocaleString('en-IN')}${Number(p.tax_percent) > 0 ? ` + ${Number(p.tax_percent)}% GST` : ''} for the first ${p.included_minutes / 60} hours, then ₹${Number(p.extension_rate_per_hour).toLocaleString('en-IN')}/hour${Number(p.tax_percent) > 0 ? ' + GST' : ''}.`,
+    priceSpecification: { '@type': 'UnitPriceSpecification', price: withGst(p.base_fee, p.tax_percent), priceCurrency: 'INR', ...(Number(p.tax_percent) > 0 ? { valueAddedTaxIncluded: true } : {}) },
     availability: 'https://schema.org/InStock',
     areaServed: { '@type': 'City', name: c.brand.city || 'Gurugram' },
   }));
@@ -111,8 +111,8 @@ export function schemaFor(path: string, c: PublicConfig): object[] {
       areaServed: city,
       ...(general ? { offers: {
         '@type': 'Offer', priceCurrency: 'INR', price: withGst(general.base_fee, general.tax_percent),
-        priceSpecification: { '@type': 'UnitPriceSpecification', price: withGst(general.base_fee, general.tax_percent), priceCurrency: 'INR', valueAddedTaxIncluded: true },
-        description: `₹${Number(general.base_fee).toLocaleString('en-IN')} + ${Number(general.tax_percent)}% GST for the first ${general.included_minutes / 60} hours`,
+        priceSpecification: { '@type': 'UnitPriceSpecification', price: withGst(general.base_fee, general.tax_percent), priceCurrency: 'INR', ...(Number(general.tax_percent) > 0 ? { valueAddedTaxIncluded: true } : {}) },
+        description: `₹${Number(general.base_fee).toLocaleString('en-IN')}${Number(general.tax_percent) > 0 ? ` + ${Number(general.tax_percent)}% GST` : ''} for the first ${general.included_minutes / 60} hours`,
       } } : {}),
     },
     faqSchema(sp.faq),

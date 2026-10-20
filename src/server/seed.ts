@@ -60,9 +60,9 @@ export async function seed(tx: any) {
      VALUES ('Gurugram', 'Gurugram', 28.44, 77.06, 16, ${['gurugram', 'gurgaon', 'manesar', 'dlf', 'sohna road', 'golf course']}) RETURNING id`)[0].id;
 
   const general = (await tx`INSERT INTO pricing_rules (name, service_type, base_fee, included_minutes, extension_rate_per_hour, tax_percent, urgent_surcharge)
-     VALUES ('Medical Companion', '*', 1499, 240, 299, 18, 0) RETURNING *`)[0];
+     VALUES ('Medical Companion', '*', 1499, 240, 299, 0, 0) RETURNING *`)[0];
   const admission = (await tx`INSERT INTO pricing_rules (name, service_type, base_fee, included_minutes, extension_rate_per_hour, tax_percent, urgent_surcharge)
-     VALUES ('Admission Support', 'admission', 1999, 360, 299, 18, 0) RETURNING *`)[0];
+     VALUES ('Admission Support', 'admission', 1999, 360, 299, 0, 0) RETURNING *`)[0];
 
   for (const t of TEMPLATES) {
     await tx`INSERT INTO message_templates (key, name, body, buttons) VALUES (${t.key}, ${t.name}, ${t.body}, ${tx.json(t.buttons ?? [])})

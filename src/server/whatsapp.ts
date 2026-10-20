@@ -276,6 +276,8 @@ class Bot {
         const alone = parseDateTimeEx(text);
         const p = this.draft.pending_date && !alone.hadDate ? parseDateTimeEx(`${this.draft.pending_date} ${text}`) : alone;
         if (!p.date && p.dateOnly) {
+          const [py, pm, pd] = p.dateOnly.split('-').map(Number);
+          if (istDate(py, pm - 1, pd, 23, 59).getTime() < Date.now()) return this.say('That date has already passed. Please send a future date and time, for example *tomorrow 10 am*.');
           this.draft.pending_date = p.dateOnly;
           const [yy, mm, dd] = p.dateOnly.split('-').map(Number);
           const label = new Date(Date.UTC(yy, mm - 1, dd, 6)).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
@@ -283,6 +285,7 @@ class Bot {
         }
         const d = p.date;
         if (!d) return this.say('Sorry, I could not read that. Please send the date and time, for example *10 Oct 11 am*, *tomorrow 9 am* or *Monday 4 pm*.');
+        if (d.getTime() < Date.now()) return this.say('That date and time has already passed. Please send a future date and time, for example *tomorrow 10 am*.');
         if (d.getTime() < Date.now() + 30 * 60000) return this.say('Please choose a time at least 30 minutes from now. For urgent help, type *menu* and choose Get Help Now.');
         if (d.getTime() > Date.now() + 60 * 86400000) return this.say('We can schedule up to 60 days ahead. Please send an earlier date.');
         this.draft.requested_at = d.toISOString();
@@ -627,6 +630,7 @@ export function parseDateTimeEx(input: string): { date: Date | null; dateOnly: s
     const yy = fullYear(m[3]); if (yy) explicitYear = true;
     return setYmd(yy ?? todayY, Number(m[2]) - 1, Number(m[1]));
   }) ||
+  take(/\b(yesterday|beeta kal|bita kal)\b/, () => addDays(-1)) ||
   take(/\b(day after tomorrow|parso|parson)\b/, () => addDays(2)) ||
   take(/\b(tomorrow|tmrw|tmr|tomorow|tommorow|tommorrow|kal)\b/, () => addDays(1)) ||
   take(/\b(today|aaj|tonight)\b/, () => addDays(0)) ||
@@ -654,7 +658,7 @@ export function parseDateTimeEx(input: string): { date: Date | null; dateOnly: s
     else if (part === 'pm') h = 17;
     else if (d != null && mo! >= 0 && mo! <= 11 && d! >= 1 && d! <= 31) {
       let yy = y!;
-      if (!explicitYear && istDate(yy, mo!, d!, 23, 59).getTime() < Date.now()) yy += 1;
+      if (!explicitYear && istDate(yy, mo!, d!, 23, 59).getTime() < Date.now() - 90 * 86400000) yy += 1;
       return { date: null, hadDate: true, dateOnly: `${yy}-${String(mo! + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` };
     } else return none;
   }
@@ -670,7 +674,7 @@ export function parseDateTimeEx(input: string): { date: Date | null; dateOnly: s
   let out = istDate(y!, mo!, d!, h, mi);
   const check = new Date(out.getTime() + 330 * 60000);
   if (check.getUTCDate() !== d) return none; // e.g. 31 Feb
-  if (!explicitYear && out.getTime() < Date.now() - 86400000) out = istDate(y! + 1, mo!, d!, h, mi);
+  if (!explicitYear && out.getTime() < Date.now() - 90 * 86400000) out = istDate(y! + 1, mo!, d!, h, mi);
   return { date: out, dateOnly: null, hadDate: true };
 }
 

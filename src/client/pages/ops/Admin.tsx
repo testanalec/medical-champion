@@ -236,7 +236,7 @@ function Pricing() {
     <div>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm text-slate-600">The most specific active rule wins (service type → area → latest effective date). Prices are never hard-coded in the apps.</p>
-        {can('pricing.edit') && <Button className="btn-primary btn-sm" onClick={() => setEdit({ service_type: '*', included_minutes: 240, extension_block_minutes: 60, tax_percent: 18, urgent_surcharge: 0, active: true, effective_from: new Date().toISOString().slice(0, 10) })}><FiPlus /> New rule</Button>}
+        {can('pricing.edit') && <Button className="btn-primary btn-sm" onClick={() => setEdit({ service_type: '*', included_minutes: 240, extension_block_minutes: 60, tax_percent: 0, urgent_surcharge: 0, active: true, effective_from: new Date().toISOString().slice(0, 10) })}><FiPlus /> New rule</Button>}
       </div>
       <div className="card overflow-x-auto">
         <table className="table-base">

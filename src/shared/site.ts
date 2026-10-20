@@ -15,7 +15,7 @@ export const LEGAL = {
 
 export const HOURS = { opens: '07:00', closes: '23:00', label: '7 AM – 11 PM, all days' };
 
-/** Price including GST, rounded to the rupee (₹1,499 + 18% = ₹1,769). */
+/** Price including GST, rounded to the rupee (with tax 0% this is just the fee). */
 export const withGst = (fee: number | string, taxPercent: number | string) => Math.round(Number(fee) * (1 + Number(taxPercent || 0) / 100));
 
 export interface PageMeta { path: string; title: string; description: string; priority: number }
@@ -25,7 +25,7 @@ export const PUBLIC_PAGES: PageMeta[] = [
   {
     path: '/',
     title: 'ChampOnCall — Hospital companion for your parents in Gurugram',
-    description: 'Verified companions who take your parents to hospital, OPD, diagnostics, admission or discharge in Gurugram — with live WhatsApp updates. From ₹1,499 (₹1,769 incl. GST). 7 AM – 11 PM.',
+    description: 'Verified companions who take your parents to hospital, OPD, diagnostics, admission or discharge in Gurugram — with live WhatsApp updates. From ₹1,499, pay after the visit. 7 AM – 11 PM.',
     priority: 1.0,
   },
   {
@@ -37,7 +37,7 @@ export const PUBLIC_PAGES: PageMeta[] = [
   {
     path: '/opd-visit-companion-gurugram',
     title: 'OPD Visit Companion for Elderly Parents in Gurugram | ChampOnCall',
-    description: 'A verified companion takes your parent to their OPD appointment in Gurugram — pickup, registration, consultation, tests, pharmacy and home — with WhatsApp updates. ₹1,499 + GST.',
+    description: 'A verified companion takes your parent to their OPD appointment in Gurugram — pickup, registration, consultation, tests, pharmacy and home — with WhatsApp updates. From ₹1,499.',
     priority: 0.9,
   },
   {
