@@ -531,7 +531,7 @@ export function registerAdmin(r: Router) {
       await tx`DELETE FROM sessions`;
     });
     const security = await getSetting('security');
-    await setSetting('security', { ...security, demo_mode: false }, ownerId);
+    await setSetting('security', { ...security, demo_mode: false, live_since: new Date().toISOString() }, ownerId);
     await audit(ctx, 'data.go_live_reset', 'settings', null,
       `${u.name} launched live mode: removed ${counts.requests} requests, ${counts.customers} customers and ${counts.companions} companions of demo/test data; created Super Admin ${email}; disabled ${demoEmails.length} demo logins; demo mode off.`);
     return { ok: true, removed: counts, admin_email: email };

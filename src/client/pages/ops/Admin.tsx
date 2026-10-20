@@ -147,7 +147,8 @@ function SecurityTab({ s, integrations, onSaved }: { s: any; integrations: any; 
       </Section>
       <KeyForm k="security" title="Security" value={s.security} onSaved={onSaved} numeric fields={[['otp_ttl_seconds', 'OTP expiry (seconds)']]} bools={[['demo_mode', 'Demo mode (shows OTP on screen, allows demo reset) — turn OFF in production']]} />
       <MetaTemplates />
-      {can('data.reset') && s.security.demo_mode && <GoLiveReset />}
+      {/* Shown until the go-live reset has run once (demo mode may already be off before test data is cleared). */}
+      {can('data.reset') && (s.security.demo_mode || !s.security.live_since) && <GoLiveReset />}
       {can('data.reset') && s.security.demo_mode && (
         <Section title="Demo data">
           <p className="text-sm text-slate-600">Wipe and re-seed the database with fresh demo data (30 days of history, live board, companions, users).</p>
