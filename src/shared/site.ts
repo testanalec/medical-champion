@@ -2,7 +2,8 @@
 export const SITE_URL = 'https://www.champoncall.com';
 export const OG_IMAGE = `${SITE_URL}/og-image.png`;
 
-/** Legal entity shown in the footer and in schema markup. Fill gstin/address to publish them. */
+/** Legal entity shown in the footer and in schema markup. Fill gstin/address to publish them.
+ *  Not GST-registered yet (Udyam UDYAM-HR-03-0171546): pricing rules use tax 0%, so no GST is shown or charged. */
 export const LEGAL = {
   name: 'FBN Services India',
   gstin: '',
